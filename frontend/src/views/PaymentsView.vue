@@ -112,7 +112,7 @@ async function submit(): Promise<void> {
 }
 
 function printPayment(payment: Payment): void {
-  window.open(`/print/payment/${payment.id}`, '_blank', 'width=420,height=800')
+  window.open(`${import.meta.env.BASE_URL}print/payment/${payment.id}`, '_blank', 'width=420,height=800')
 }
 
 function printDonePayment(): void {

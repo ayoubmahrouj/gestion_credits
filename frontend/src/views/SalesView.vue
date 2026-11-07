@@ -189,7 +189,7 @@ async function submit(): Promise<void> {
 }
 
 function printSale(sale: Sale): void {
-  window.open(`/print/sale/${sale.id}`, '_blank', 'width=420,height=800')
+  window.open(`${import.meta.env.BASE_URL}print/sale/${sale.id}`, '_blank', 'width=420,height=800')
 }
 
 function printDoneSale(): void {

@@ -1,12 +1,16 @@
 /* Gestion Crédits — service worker (PWA) */
 const CACHE = 'gestion-credits-v1'
+
+// Base de déploiement ('/' en production, '/gestion-credits/' sous WAMP…)
+const BASE = new URL(self.registration.scope).pathname
+
 const SHELL = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/favicon.svg',
-  '/icon-192.png',
-  '/icon-512.png',
+  BASE,
+  `${BASE}index.html`,
+  `${BASE}manifest.webmanifest`,
+  `${BASE}favicon.svg`,
+  `${BASE}icon-192.png`,
+  `${BASE}icon-512.png`,
 ]
 
 self.addEventListener('install', (event) => {
@@ -37,7 +41,7 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return
 
   // Les données (API) ne sont jamais mises en cache.
-  if (url.pathname.startsWith('/api/')) return
+  if (url.pathname.includes('/api/')) return
 
   // Navigation : réseau d'abord, coquille hors ligne en secours.
   if (request.mode === 'navigate') {
@@ -45,16 +49,16 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           const copy = response.clone()
-          caches.open(CACHE).then((cache) => cache.put('/index.html', copy))
+          caches.open(CACHE).then((cache) => cache.put(`${BASE}index.html`, copy))
           return response
         })
-        .catch(() => caches.match('/index.html').then((hit) => hit || caches.match('/'))),
+        .catch(() => caches.match(`${BASE}index.html`).then((hit) => hit || caches.match(BASE))),
     )
     return
   }
 
   // Assets statiques : cache d'abord (fichiers versionnés par Vite).
-  if (url.pathname.startsWith('/assets/') || /\.(css|js|png|svg|webp|woff2?)$/.test(url.pathname)) {
+  if (url.pathname.startsWith(`${BASE}assets/`) || /\.(css|js|png|svg|webp|woff2?)$/.test(url.pathname)) {
     event.respondWith(
       caches.match(request).then(
         (hit) =>

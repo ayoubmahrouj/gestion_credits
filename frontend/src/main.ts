@@ -15,7 +15,8 @@ applyDirection(i18n.global.locale.value)
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
+    const base = import.meta.env.BASE_URL
+    navigator.serviceWorker.register(`${base}sw.js`, { scope: base }).catch(() => {
       // PWA optionnelle : aucune erreur bloquante
     })
   })

@@ -37,10 +37,25 @@ npm run dev
 - Interface : **http://localhost:5173** (ou http://127.0.0.1:5173)
 - API : **http://localhost:8000/api/v1**
 
+### Option C — WAMP (aucune fenêtre à laisser ouverte, recommandé au quotidien)
+
+L'application est installée dans WAMP et servie par Apache :
+
+| Élément | Emplacement |
+|---|---|
+| Interface (build) | `C:\wamp64\www\gestion-credits` |
+| API (point d'entrée) | `C:\wamp64\www\gestion-credits-api` (pointe vers `backend/`) |
+| URL | **http://localhost/gestion-credits/** |
+| Raccourci | icône **« Gestion Credits »** sur le Bureau |
+
+- WAMP démarre avec Windows (services `wampapache64` / `wampmariadb64`) : rien à lancer à la main.
+- Après une modification du frontend : double-cliquer sur **`maj-wamp.bat`** (rebuild + copie vers WAMP).
+- L'API utilise le PHP de WAMP (8.3) : `composer.json` déclare `config.platform.php = 8.3.28` pour rester compatible.
+
 ### ⚠️ « localhost refused to connect »
 Cela signifie simplement que **les deux serveurs ne tournent pas**.
-Relancer avec `demarrer.bat` (ou les deux commandes ci-dessus).
-Garder les fenêtres noires ouvertes pendant l'utilisation : les fermer coupe le site.
+Relancer avec `demarrer.bat` (ou les deux commandes ci-dessus), ou utiliser WAMP (option C)
+qui démarre tout seul avec Windows.
 
 ### Connexion
 ```
