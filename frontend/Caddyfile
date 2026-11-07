@@ -1,0 +1,35 @@
+{
+	admin off
+	email {$ACME_EMAIL:admin@example.com}
+}
+
+{$DOMAIN:localhost} {
+	encode zstd gzip
+
+	# API Laravel (PHP-FPM) — jamais de cache navigateur sur les données.
+	handle /api/* {
+		root * /var/www/public
+		php_fastcgi app:9000
+		file_server
+	}
+
+	# Application Vue (SPA) : toutes les routes retombent sur index.html.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

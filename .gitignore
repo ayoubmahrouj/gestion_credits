@@ -1,0 +1,8 @@
+# Environnement local
+.env
+.env.local
+
+# Journaux / divers
+*.log
+Thumbs.db
+.DS_Store

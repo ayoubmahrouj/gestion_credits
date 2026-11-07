@@ -1,0 +1,46 @@
+name: gestion-credits
+
+services:
+  app:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    volumes:
+      - ./backend/database:/var/www/database
+      - ./backend/storage:/var/www/storage
+    expose:
+      - "9000"
+
+  scheduler:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    volumes:
+      - ./backend/database:/var/www/database
+      - ./backend/storage:/var/www/storage
+    entrypoint: ["sh", "-c"]
+    command: ["sleep 20; while true; do php artisan schedule:run --no-interaction; sleep 60; done"]
+    depends_on:
+      - app
+
+  web:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:
