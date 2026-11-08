@@ -1,0 +1,14 @@
+# Base de données et fichiers générés
+data/gestion.sqlite
+data/gestion.sqlite-wal
+data/gestion.sqlite-shm
+data/backups/*
+!data/backups/.gitkeep
+data/exports/*
+!data/exports/.gitkeep
+
+# Journaux et divers
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
