@@ -230,8 +230,8 @@ layout_start(t('sale_new'), 'sales');
                                 <button class="quick-add" type="button" data-action="modal-open" data-target="quick-product-modal" title="<?= e(t('product_new')) ?>">+</button>
                             </div>
                         </td>
-                        <td><input type="number" step="0.01" min="0.01" name="qty[]" class="line-qty" value="<?= e((string) $oldQty) ?>" style="width:100%"></td>
-                        <td><input type="number" step="0.01" min="0" name="price[]" class="line-price" value="<?= e((string) $oldPrice) ?>" style="width:100%"></td>
+                        <td><input type="number" step="0.01" min="0.01" name="qty[]" class="line-qty" value="<?= e((string) $oldQty) ?>"></td>
+                        <td><input type="number" step="0.01" min="0" name="price[]" class="line-price" value="<?= e((string) $oldPrice) ?>"></td>
                         <td class="num line-total">0,00</td>
                         <td><button class="btn btn-ghost btn-sm" type="button" data-remove-line>×</button></td>
                     </tr>
@@ -279,8 +279,8 @@ layout_start(t('sale_new'), 'sales');
                 <button class="quick-add" type="button" data-action="modal-open" data-target="quick-product-modal" title="<?= e(t('product_new')) ?>">+</button>
             </div>
         </td>
-        <td><input type="number" step="0.01" min="0.01" name="qty[]" class="line-qty" value="1" style="width:100%"></td>
-        <td><input type="number" step="0.01" min="0" name="price[]" class="line-price" value="0" style="width:100%"></td>
+        <td><input type="number" step="0.01" min="0.01" name="qty[]" class="line-qty" value="1"></td>
+        <td><input type="number" step="0.01" min="0" name="price[]" class="line-price" value="0"></td>
         <td class="num line-total">0,00</td>
         <td><button class="btn btn-ghost btn-sm" type="button" data-remove-line>×</button></td>
     </tr>

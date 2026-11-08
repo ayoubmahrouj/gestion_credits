@@ -192,23 +192,25 @@ print_header(t('products'));
                     </td>
                     <td class="num"><?= money($product['price']) ?></td>
                     <td>
-                        <form method="post" action="<?= url('products') ?>" class="inline-form" style="gap:4px">
-                            <input type="hidden" name="_token" value="<?= csrf() ?>">
-                            <input type="hidden" name="action" value="stock">
-                            <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
-                            <input type="hidden" name="delta" value="1">
-                            <button class="btn btn-ghost btn-sm" type="submit" title="+1">+</button>
-                        </form>
-                        <span class="badge <?= $product['stock'] > 0 ? 'badge-green' : 'badge-red' ?>" style="margin:0 4px">
-                            <?= (int) $product['stock'] ?>
-                        </span>
-                        <form method="post" action="<?= url('products') ?>" class="inline-form" style="display:inline;gap:4px">
-                            <input type="hidden" name="_token" value="<?= csrf() ?>">
-                            <input type="hidden" name="action" value="stock">
-                            <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
-                            <input type="hidden" name="delta" value="-1">
-                            <button class="btn btn-ghost btn-sm" type="submit" title="-1">−</button>
-                        </form>
+                        <div class="stock-ctl">
+                            <form method="post" action="<?= url('products') ?>">
+                                <input type="hidden" name="_token" value="<?= csrf() ?>">
+                                <input type="hidden" name="action" value="stock">
+                                <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
+                                <input type="hidden" name="delta" value="1">
+                                <button class="btn btn-ghost btn-sm" type="submit" title="+1">+</button>
+                            </form>
+                            <span class="badge <?= $product['stock'] > 0 ? 'badge-green' : 'badge-red' ?>">
+                                <?= (int) $product['stock'] ?>
+                            </span>
+                            <form method="post" action="<?= url('products') ?>">
+                                <input type="hidden" name="_token" value="<?= csrf() ?>">
+                                <input type="hidden" name="action" value="stock">
+                                <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
+                                <input type="hidden" name="delta" value="-1">
+                                <button class="btn btn-ghost btn-sm" type="submit" title="-1">−</button>
+                            </form>
+                        </div>
                     </td>
                     <td>
                         <?php if ($product['is_active']): ?>

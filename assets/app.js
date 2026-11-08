@@ -80,6 +80,10 @@
     return (Math.round(value * 100) / 100).toFixed(2);
   }
 
+  function display(value) {
+    return money(value).replace('.', ',');
+  }
+
   function initSaleForm() {
     var form = document.getElementById('sale-form');
     if (!form) return;
@@ -95,15 +99,15 @@
         var price = parseFloat(row.querySelector('.line-price').value) || 0;
         var total = qty * price;
 
-        row.querySelector('.line-total').textContent = money(total);
+        row.querySelector('.line-total').textContent = display(total);
         subtotal += total;
       });
 
       var discount = parseFloat(document.getElementById('sale-discount').value) || 0;
       var total = Math.max(0, subtotal - discount);
 
-      document.getElementById('sale-subtotal').textContent = money(subtotal);
-      document.getElementById('sale-total').textContent = money(total);
+      document.getElementById('sale-subtotal').textContent = display(subtotal);
+      document.getElementById('sale-total').textContent = display(total);
       document.getElementById('sale-total-input').value = money(total);
 
       var paid = document.getElementById('sale-paid');
@@ -113,7 +117,7 @@
       }
 
       var remaining = Math.max(0, total - (parseFloat(paid.value) || 0));
-      document.getElementById('sale-remaining').textContent = money(remaining);
+      document.getElementById('sale-remaining').textContent = display(remaining);
     }
 
     function addLine() {
