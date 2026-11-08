@@ -94,7 +94,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     [$saleId, $line['product_id'], $line['name'], $line['qty'], $line['price'], $line['total']]
                 );
 
-                q('UPDATE products SET stock = stock - ? WHERE id = ?', [$line['qty'], $line['product_id']]);
             }
 
             if ($remaining > 0.009) {
@@ -126,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 |-------------------------------------------------------------------------*/
 
 $clients = all('SELECT id, name, phone FROM clients WHERE is_active = 1 ORDER BY name COLLATE NOCASE');
-$products = all('SELECT id, brand, name, price, stock FROM products WHERE is_active = 1 ORDER BY brand COLLATE NOCASE, name COLLATE NOCASE');
+$products = all('SELECT id, brand, name, price FROM products WHERE is_active = 1 ORDER BY brand COLLATE NOCASE, name COLLATE NOCASE');
 
 $selectedClient = (int) (post('client_id') ?: get('client_id'));
 $selectedDate = (string) (post('date') ?: today());
@@ -223,7 +222,6 @@ layout_start(t('sale_new'), 'sales');
                                                 data-price="<?= e((string) $product['price']) ?>"
                                                 <?= $oldId === (int) $product['id'] ? 'selected' : '' ?>>
                                             <?= e(($product['brand'] !== '' ? $product['brand'] . ' — ' : '') . $product['name']) ?>
-                                            (<?= (int) $product['stock'] ?>)
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -272,7 +270,6 @@ layout_start(t('sale_new'), 'sales');
                     <?php foreach ($products as $product): ?>
                         <option value="<?= (int) $product['id'] ?>" data-price="<?= e((string) $product['price']) ?>">
                             <?= e(($product['brand'] !== '' ? $product['brand'] . ' — ' : '') . $product['name']) ?>
-                            (<?= (int) $product['stock'] ?>)
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -336,10 +333,6 @@ layout_start(t('sale_new'), 'sales');
                 <label class="field">
                     <span><?= e(t('price')) ?> *</span>
                     <input type="number" step="0.01" min="0" name="price" required>
-                </label>
-                <label class="field">
-                    <span><?= e(t('stock')) ?></span>
-                    <input type="number" step="1" min="0" name="stock" value="0">
                 </label>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:10px">

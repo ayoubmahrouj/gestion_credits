@@ -23,12 +23,15 @@ $brand = trim((string) post('brand'));
 $name = trim((string) post('name'));
 $description = trim((string) post('description'));
 $price = post_float('price');
-$stock = (int) post('stock');
 
 if ($name === '') {
     http_response_code(422);
     echo json_encode(['error' => t('error_required')]);
     exit;
+}
+
+if ($brand !== '') {
+    q('INSERT OR IGNORE INTO brands (name) VALUES (?)', [$brand]);
 }
 
 $existing = one(
@@ -44,8 +47,8 @@ if ($existing) {
     }
 
     q(
-        'UPDATE products SET is_active = 1, price = ?, stock = ?, description = ? WHERE id = ?',
-        [$price, $stock, $description, $existing['id']]
+        'UPDATE products SET is_active = 1, price = ?, description = ? WHERE id = ?',
+        [$price, $description, $existing['id']]
     );
 
     echo json_encode([
@@ -57,8 +60,8 @@ if ($existing) {
 }
 
 q(
-    'INSERT INTO products (brand, name, description, price, stock) VALUES (?, ?, ?, ?, ?)',
-    [$brand, $name, $description, $price, $stock]
+    'INSERT INTO products (brand, name, description, price) VALUES (?, ?, ?, ?)',
+    [$brand, $name, $description, $price]
 );
 
 echo json_encode([

@@ -220,12 +220,15 @@
             }
 
             if (select) {
+              var valueKey = form.getAttribute('data-value');
+              var value = valueKey && data[valueKey] !== undefined ? data[valueKey] : data.id;
+
               var option = document.createElement('option');
-              option.value = data.id;
+              option.value = String(value);
               option.textContent = data.name;
               if (data.price !== undefined) option.setAttribute('data-price', data.price);
               select.appendChild(option);
-              select.value = String(data.id);
+              select.value = String(value);
               select.dispatchEvent(new Event('change', { bubbles: true }));
             }
 

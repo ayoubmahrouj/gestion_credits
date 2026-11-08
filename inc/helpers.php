@@ -194,7 +194,7 @@ function fr_datetime(?string $date): string
 }
 
 /* -------------------------------------------------------------------------
-| Métier : crédits, stock
+| Métier : crédits
 |-------------------------------------------------------------------------*/
 
 function client_balance(int $clientId): float

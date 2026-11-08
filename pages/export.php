@@ -288,14 +288,13 @@ if (in_array($type, ['products', 'report'], true)) {
             $product['name'],
             $product['description'],
             (float) $product['price'],
-            (int) $product['stock'],
             $product['is_active'] ? 'Actif' : 'Désactivé',
         ];
     }
 
     $writer->addSheet(
         'Produits',
-        ['N°', 'Marque', 'Désignation', 'Description', 'Prix', 'Stock', 'Statut'],
+        ['N°', 'Marque', 'Désignation', 'Description', 'Prix', 'Statut'],
         $rows,
         [4]
     );

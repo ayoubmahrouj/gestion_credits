@@ -26,6 +26,8 @@ function db(): PDO
         seed_data($pdo);
     }
 
+    migrate($pdo);
+
     return $pdo;
 }
 
@@ -58,12 +60,20 @@ CREATE TABLE products (
     name TEXT NOT NULL,
     description TEXT,
     price REAL NOT NULL DEFAULT 0,
-    stock INTEGER NOT NULL DEFAULT 0,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE UNIQUE INDEX idx_products_unique ON products (brand COLLATE NOCASE, name COLLATE NOCASE);
+
+CREATE TABLE brands (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX idx_brands_unique ON brands (name COLLATE NOCASE);
 
 CREATE TABLE sales (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -132,6 +142,27 @@ CREATE INDEX idx_credits_status ON credits(status);
 CREATE INDEX idx_payments_date ON payments(date);
 CREATE INDEX idx_payments_client ON payments(client_id);
 SQL);
+}
+
+/**
+ * Migrations légères exécutées à chaque connexion (idempotentes).
+ * Permet de faire évoluer une base existante sans perdre les données.
+ */
+function migrate(PDO $pdo): void
+{
+    $pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS brands (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_brands_unique ON brands (name COLLATE NOCASE);
+SQL);
+
+    // Reprend les marques déjà saisies sur les produits.
+    $pdo->exec("INSERT OR IGNORE INTO brands (name) SELECT DISTINCT TRIM(brand) FROM products WHERE TRIM(brand) <> ''");
 }
 
 function seed_data(PDO $pdo): void

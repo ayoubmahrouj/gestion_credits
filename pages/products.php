@@ -19,7 +19,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = trim((string) post('name'));
         $description = trim((string) post('description'));
         $price = post_float('price');
-        $stock = (int) post('stock');
 
         if ($name === '') {
             $errors[] = t('error_required');
@@ -36,8 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (! $existing['is_active']) {
                     // Produit désactivé identique : on le réactive et on met à jour.
                     q(
-                        'UPDATE products SET is_active = 1, description = ?, price = ?, stock = ? WHERE id = ?',
-                        [$description, $price, $stock, $existing['id']]
+                        'UPDATE products SET is_active = 1, description = ?, price = ? WHERE id = ?',
+                        [$description, $price, $existing['id']]
                     );
                     flash(t('product_reactivated'));
                     redirect('products');
@@ -50,14 +49,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (! $errors) {
             if ($id > 0) {
                 q(
-                    'UPDATE products SET brand = ?, name = ?, description = ?, price = ?, stock = ? WHERE id = ?',
-                    [$brand, $name, $description, $price, $stock, $id]
+                    'UPDATE products SET brand = ?, name = ?, description = ?, price = ? WHERE id = ?',
+                    [$brand, $name, $description, $price, $id]
                 );
             } else {
                 q(
-                    'INSERT INTO products (brand, name, description, price, stock) VALUES (?, ?, ?, ?, ?)',
-                    [$brand, $name, $description, $price, $stock]
+                    'INSERT INTO products (brand, name, description, price) VALUES (?, ?, ?, ?)',
+                    [$brand, $name, $description, $price]
                 );
+            }
+
+            // La marque utilisée est enregistrée dans la liste des marques.
+            if ($brand !== '') {
+                q('INSERT OR IGNORE INTO brands (name) VALUES (?)', [$brand]);
             }
 
             flash(t('saved'));
@@ -76,14 +80,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         redirect('products');
     }
-
-    if ($action === 'stock') {
-        $id = post_int('id');
-        $delta = (int) post('delta');
-        q('UPDATE products SET stock = MAX(0, stock + ?) WHERE id = ?', [$delta, $id]);
-        flash(t('saved'));
-        redirect('products');
-    }
 }
 
 /* -------------------------------------------------------------------------
@@ -92,7 +88,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $q = trim((string) get('q'));
 $status = (string) get('status', 'active');
-$stockFilter = (string) get('stock');
 
 $sql = 'SELECT * FROM products WHERE 1 = 1';
 $params = [];
@@ -110,18 +105,19 @@ if ($status === 'active') {
     $sql .= ' AND is_active = 0';
 }
 
-if ($stockFilter === 'in') {
-    $sql .= ' AND stock > 0';
-} elseif ($stockFilter === 'out') {
-    $sql .= ' AND stock <= 0';
-}
-
 $sql .= ' ORDER BY brand COLLATE NOCASE, name COLLATE NOCASE';
 $products = all($sql, $params);
 
+// Liste des marques : table brands + marques déjà présentes sur des produits.
 $brands = array_column(
-    all('SELECT DISTINCT brand FROM products WHERE brand <> "" ORDER BY brand COLLATE NOCASE'),
-    'brand'
+    all(
+        "SELECT DISTINCT name FROM (
+            SELECT name FROM brands WHERE name <> ''
+            UNION
+            SELECT brand AS name FROM products WHERE brand <> ''
+         ) ORDER BY name COLLATE NOCASE"
+    ),
+    'name'
 );
 
 $editing = null;
@@ -130,6 +126,8 @@ if ($editId = (int) get('edit')) {
 }
 
 $showModal = $editing !== null || get('new') === '1' || $errors;
+
+$currentBrand = (string) ($editing['brand'] ?? post('brand'));
 
 layout_start(t('products'), 'products');
 print_header(t('products'));
@@ -150,14 +148,6 @@ print_header(t('products'));
                 <option value="all" <?= $status === 'all' ? 'selected' : '' ?>><?= e(t('all')) ?></option>
             </select>
         </label>
-        <label class="field">
-            <span><?= e(t('stock_filter')) ?></span>
-            <select name="stock">
-                <option value=""><?= e(t('all')) ?></option>
-                <option value="in" <?= $stockFilter === 'in' ? 'selected' : '' ?>><?= e(t('in_stock')) ?></option>
-                <option value="out" <?= $stockFilter === 'out' ? 'selected' : '' ?>><?= e(t('out_of_stock')) ?></option>
-            </select>
-        </label>
         <button class="btn btn-ghost" type="submit"><?= e(t('filter')) ?></button>
         <a class="btn btn-ghost" href="<?= url('products') ?>"><?= e(t('reset')) ?></a>
     </form>
@@ -174,44 +164,22 @@ print_header(t('products'));
                 <th><?= e(t('brand')) ?></th>
                 <th><?= e(t('designation')) ?></th>
                 <th class="num"><?= e(t('price')) ?></th>
-                <th><?= e(t('stock')) ?></th>
                 <th><?= e(t('status')) ?></th>
                 <th class="actions"><?= e(t('actions')) ?></th>
             </tr>
             </thead>
             <tbody>
             <?php if (! $products): ?>
-                <tr><td colspan="6" class="empty"><?= e(t('no_results')) ?></td></tr>
+                <tr><td colspan="5" class="empty"><?= e(t('no_results')) ?></td></tr>
             <?php endif; ?>
             <?php foreach ($products as $product): ?>
                 <tr>
-                    <td style="font-weight:600"><?= e($product['brand'] ?: '—') ?></td>
+                    <td style="font-weight:600" class="nowrap"><?= e($product['brand'] ?: '—') ?></td>
                     <td>
                         <?= e($product['name']) ?>
                         <?php if ($product['description']): ?><div class="small muted"><?= e($product['description']) ?></div><?php endif; ?>
                     </td>
                     <td class="num"><?= money($product['price']) ?></td>
-                    <td>
-                        <div class="stock-ctl">
-                            <form method="post" action="<?= url('products') ?>">
-                                <input type="hidden" name="_token" value="<?= csrf() ?>">
-                                <input type="hidden" name="action" value="stock">
-                                <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
-                                <input type="hidden" name="delta" value="1">
-                                <button class="btn btn-ghost btn-sm" type="submit" title="+1">+</button>
-                            </form>
-                            <span class="badge <?= $product['stock'] > 0 ? 'badge-green' : 'badge-red' ?>">
-                                <?= (int) $product['stock'] ?>
-                            </span>
-                            <form method="post" action="<?= url('products') ?>">
-                                <input type="hidden" name="_token" value="<?= csrf() ?>">
-                                <input type="hidden" name="action" value="stock">
-                                <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
-                                <input type="hidden" name="delta" value="-1">
-                                <button class="btn btn-ghost btn-sm" type="submit" title="-1">−</button>
-                            </form>
-                        </div>
-                    </td>
                     <td>
                         <?php if ($product['is_active']): ?>
                             <span class="badge badge-green"><?= e(t('active')) ?></span>
@@ -258,10 +226,16 @@ print_header(t('products'));
             <div class="form-row">
                 <label class="field">
                     <span><?= e(t('brand')) ?></span>
-                    <input type="text" name="brand" list="brand-list" value="<?= e($editing['brand'] ?? post('brand')) ?>" placeholder="DUSTER">
-                    <datalist id="brand-list">
-                        <?php foreach ($brands as $brand): ?><option value="<?= e($brand) ?>"><?php endforeach; ?>
-                    </datalist>
+                    <div class="quick-field">
+                        <select name="brand" id="product-brand">
+                            <option value="">— <?= e(t('brand')) ?> —</option>
+                            <?php foreach ($brands as $brand): ?>
+                                <option value="<?= e($brand) ?>" <?= $currentBrand === $brand ? 'selected' : '' ?>><?= e($brand) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button class="quick-add" type="button" data-action="modal-open" data-target="quick-brand-modal"
+                                title="<?= e(t('brand_new')) ?>">+</button>
+                    </div>
                 </label>
                 <label class="field">
                     <span><?= e(t('designation')) ?> *</span>
@@ -274,19 +248,35 @@ print_header(t('products'));
                 <input type="text" name="description" value="<?= e($editing['description'] ?? post('description')) ?>">
             </label>
 
-            <div class="form-row">
-                <label class="field">
-                    <span><?= e(t('price')) ?> *</span>
-                    <input type="number" step="0.01" min="0" name="price" value="<?= e($editing['price'] ?? post('price', '0')) ?>" required>
-                </label>
-                <label class="field">
-                    <span><?= e(t('stock')) ?></span>
-                    <input type="number" step="1" min="0" name="stock" value="<?= e($editing['stock'] ?? post('stock', '0')) ?>">
-                </label>
-            </div>
+            <label class="field">
+                <span><?= e(t('price')) ?> *</span>
+                <input type="number" step="0.01" min="0" name="price" value="<?= e($editing['price'] ?? post('price', '0')) ?>" required>
+            </label>
 
             <div class="alert alert-info small"><?= e(t('product_exists')) ?></div>
 
+            <div style="display:flex;justify-content:flex-end;gap:10px">
+                <button class="btn btn-ghost" type="button" data-action="modal-close"><?= e(t('cancel')) ?></button>
+                <button class="btn btn-primary" type="submit"><?= e(t('save')) ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Ajout rapide : marque -->
+<div class="modal" id="quick-brand-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" style="max-width:420px">
+        <div class="modal-head">
+            <h2><?= e(t('brand_new')) ?></h2>
+            <button class="btn btn-ghost btn-sm" type="button" data-action="modal-close"><?= e(t('close')) ?></button>
+        </div>
+        <form class="modal-body form" data-quick-form="brand_quick" data-target="product-brand" data-value="name">
+            <input type="hidden" name="_token" value="<?= csrf() ?>">
+            <label class="field">
+                <span><?= e(t('brand')) ?> *</span>
+                <input type="text" name="name" required placeholder="DUSTER" autocomplete="off">
+            </label>
             <div style="display:flex;justify-content:flex-end;gap:10px">
                 <button class="btn btn-ghost" type="button" data-action="modal-close"><?= e(t('cancel')) ?></button>
                 <button class="btn btn-primary" type="submit"><?= e(t('save')) ?></button>
