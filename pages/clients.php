@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (! $errors) {
             if ($id > 0) {
-                q('UPDATE clients SET name=?, phone=?, address=?, credit_limit=? WHERE id=?', [$name, $phone, $address, $limit, $id]);
+                q('UPDATE clients SET name=?, phone=?, address=?, credit_limit=? WHERE id=? AND is_passenger = 0', [$name, $phone, $address, $limit, $id]);
             } else {
                 q('INSERT INTO clients (name, phone, address, credit_limit) VALUES (?, ?, ?, ?)', [$name, $phone, $address, $limit]);
                 $id = (int) db()->lastInsertId();
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'toggle') {
         $id = post_int('id');
-        $current = one('SELECT is_active FROM clients WHERE id = ?', [$id]);
+        $current = one('SELECT is_active FROM clients WHERE id = ? AND is_passenger = 0', [$id]);
 
         if ($current) {
             q('UPDATE clients SET is_active = ? WHERE id = ?', [$current['is_active'] ? 0 : 1, $id]);
@@ -53,7 +53,7 @@ $status = (string) get('status', 'active');
 $owed = (string) get('owed');
 
 $sql = 'SELECT c.*, COALESCE((SELECT SUM(remaining) FROM credits cr WHERE cr.client_id = c.id AND cr.status = \'open\'), 0) AS balance
-        FROM clients c WHERE 1 = 1';
+        FROM clients c WHERE c.is_passenger = 0';
 $params = [];
 
 if ($q !== '') {

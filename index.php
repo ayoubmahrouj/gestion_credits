@@ -17,7 +17,7 @@ require __DIR__ . '/inc/layout.php';
 // Changement de langue (FR / AR)
 if (isset($_GET['lang']) && in_array($_GET['lang'], ['fr', 'ar'], true)) {
     $_SESSION['locale'] = $_GET['lang'];
-    $target = preg_replace('/[^a-z_]/', '', (string) ($_GET['p'] ?? 'dashboard')) ?: 'dashboard';
+    $target = preg_replace('/[^a-z_]/', '', (string) ($_GET['p'] ?? 'pos')) ?: 'pos';
     unset($_GET['lang'], $_GET['p']);
     redirect($target, $_GET);
 }
@@ -30,8 +30,8 @@ if (($_GET['p'] ?? '') === 'logout') {
     exit;
 }
 
-$page = preg_replace('/[^a-z_]/', '', (string) ($_GET['p'] ?? 'dashboard'));
-$page = $page !== '' ? $page : 'dashboard';
+$page = preg_replace('/[^a-z_]/', '', (string) ($_GET['p'] ?? 'pos'));
+$page = $page !== '' ? $page : 'pos';
 
 // Pages accessibles sans connexion
 $publicPages = ['login'];
@@ -41,7 +41,7 @@ if (! user() && ! in_array($page, $publicPages, true)) {
 }
 
 if (user() && $page === 'login') {
-    redirect('dashboard');
+    redirect('pos');
 }
 
 $file = __DIR__ . '/pages/' . $page . '.php';

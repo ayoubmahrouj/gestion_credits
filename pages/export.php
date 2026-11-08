@@ -228,7 +228,7 @@ if (in_array($type, ['payments', 'report'], true)) {
 |-------------------------------------------------------------------------*/
 
 if (in_array($type, ['clients', 'report'], true)) {
-    $where = '1 = 1';
+    $where = 'c.is_passenger = 0';
     $params = [];
 
     if ($q !== '') {
@@ -340,7 +340,7 @@ if ($type === 'stats') {
 
     $outstanding = (float) scalar($creditSql, $creditParams);
     $overdue = (float) scalar($overdueSql, $overdueParams);
-    $newClients = (int) scalar('SELECT COUNT(*) FROM clients WHERE date(created_at) BETWEEN ? AND ?', [$from, $to]);
+    $newClients = (int) scalar('SELECT COUNT(*) FROM clients WHERE is_passenger = 0 AND date(created_at) BETWEEN ? AND ?', [$from, $to]);
 
     $summary = [
         ['Période', fr_date($from) . ' → ' . fr_date($to)],

@@ -51,6 +51,7 @@ CREATE TABLE clients (
     address TEXT,
     credit_limit REAL NOT NULL DEFAULT 0,
     is_active INTEGER NOT NULL DEFAULT 1,
+    is_passenger INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -163,6 +164,13 @@ SQL);
 
     // Reprend les marques déjà saisies sur les produits.
     $pdo->exec("INSERT OR IGNORE INTO brands (name) SELECT DISTINCT TRIM(brand) FROM products WHERE TRIM(brand) <> ''");
+
+    // Client spécial « Passager » (vente au comptoir, sans compte client).
+    $clientColumns = array_column($pdo->query('PRAGMA table_info(clients)')->fetchAll(), 'name');
+
+    if (! in_array('is_passenger', $clientColumns, true)) {
+        $pdo->exec('ALTER TABLE clients ADD COLUMN is_passenger INTEGER NOT NULL DEFAULT 0');
+    }
 }
 
 function seed_data(PDO $pdo): void

@@ -161,7 +161,7 @@ foreach ($openCredits as $credit) {
     }
 }
 
-$clients = all('SELECT id, name FROM clients WHERE is_active = 1 ORDER BY name COLLATE NOCASE');
+$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name COLLATE NOCASE');
 $clientName = '';
 
 foreach ($clients as $client) {

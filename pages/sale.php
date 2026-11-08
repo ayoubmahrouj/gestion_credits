@@ -29,6 +29,17 @@ print_header(t('sale_detail') . ' #' . $id, fr_date($sale['date']));
 <div class="toolbar">
     <a class="btn btn-ghost" href="<?= url('sales') ?>"><?= render_icon('back') ?><?= e(t('back')) ?></a>
     <div class="spacer"></div>
+    <?php if (is_admin()): ?>
+        <a class="btn btn-ghost" href="<?= url('sale_edit', ['id' => $id]) ?>"><?= e(t('edit')) ?></a>
+        <form method="post" action="<?= url('sale_delete') ?>" style="display:inline">
+            <input type="hidden" name="_token" value="<?= csrf() ?>">
+            <input type="hidden" name="id" value="<?= $id ?>">
+            <button class="btn btn-danger" type="submit"
+                    data-action="confirm" data-message="<?= e(t('confirm_delete_sale')) ?>">
+                <?= e(t('delete')) ?>
+            </button>
+        </form>
+    <?php endif; ?>
     <?php print_button(); ?>
     <a class="btn btn-primary" href="<?= url('ticket', ['type' => 'sale', 'id' => $id]) ?>" target="_blank"><?= e(t('print_ticket')) ?></a>
 </div>

@@ -51,7 +51,7 @@ foreach ($sales as $sale) {
     $sumPaid += (float) $sale['paid'];
 }
 
-$clients = all('SELECT id, name FROM clients WHERE is_active = 1 ORDER BY name COLLATE NOCASE');
+$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name COLLATE NOCASE');
 
 layout_start(t('sales'), 'sales');
 print_header(t('sales'), fr_date($from) . ' → ' . fr_date($to));
@@ -165,6 +165,17 @@ print_header(t('sales'), fr_date($from) . ' → ' . fr_date($to));
                     <td class="actions">
                         <a class="btn btn-ghost btn-sm" href="<?= url('sale', ['id' => $sale['id']]) ?>"><?= e(t('sale_detail')) ?></a>
                         <a class="btn btn-ghost btn-sm" href="<?= url('ticket', ['type' => 'sale', 'id' => $sale['id']]) ?>" target="_blank"><?= e(t('ticket')) ?></a>
+                        <?php if (is_admin()): ?>
+                            <a class="btn btn-ghost btn-sm" href="<?= url('sale_edit', ['id' => $sale['id']]) ?>"><?= e(t('edit')) ?></a>
+                            <form method="post" action="<?= url('sale_delete') ?>" style="display:inline">
+                                <input type="hidden" name="_token" value="<?= csrf() ?>">
+                                <input type="hidden" name="id" value="<?= (int) $sale['id'] ?>">
+                                <button class="btn btn-danger btn-sm" type="submit"
+                                        data-action="confirm" data-message="<?= e(t('confirm_delete_sale')) ?>">
+                                    <?= e(t('delete')) ?>
+                                </button>
+                            </form>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>

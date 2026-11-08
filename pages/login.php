@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         session_regenerate_id(true);
         $_SESSION['user_id'] = (int) $found['id'];
-        redirect('dashboard');
+        redirect('pos');
     }
 }
 

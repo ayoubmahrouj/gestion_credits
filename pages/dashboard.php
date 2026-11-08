@@ -10,7 +10,7 @@ $salesMonth = (float) scalar('SELECT COALESCE(SUM(total), 0) FROM sales WHERE da
 $paymentsToday = (float) scalar('SELECT COALESCE(SUM(amount), 0) FROM payments WHERE date = ?', [$today]);
 $outstanding = (float) scalar("SELECT COALESCE(SUM(remaining), 0) FROM credits WHERE status = 'open'");
 $openCredits = (int) scalar("SELECT COUNT(*) FROM credits WHERE status = 'open'");
-$clientsCount = (int) scalar('SELECT COUNT(*) FROM clients WHERE is_active = 1');
+$clientsCount = (int) scalar('SELECT COUNT(*) FROM clients WHERE is_active = 1 AND is_passenger = 0');
 $productsCount = (int) scalar('SELECT COUNT(*) FROM products WHERE is_active = 1');
 $overdueCount = (int) scalar(
     "SELECT COUNT(*) FROM credits WHERE status = 'open' AND due_date IS NOT NULL AND due_date < ?",

@@ -151,7 +151,7 @@ if ($clientId > 0) {
 $overdue = (float) scalar($overdueSql, $overdueParams);
 
 $newClients = (int) scalar(
-    'SELECT COUNT(*) FROM clients WHERE date(created_at) BETWEEN ? AND ?',
+    'SELECT COUNT(*) FROM clients WHERE is_passenger = 0 AND date(created_at) BETWEEN ? AND ?',
     [$from, $to]
 );
 
@@ -349,7 +349,7 @@ $agingRows = [
 | Clients (filtre)
 |-------------------------------------------------------------------------*/
 
-$clients = all('SELECT id, name FROM clients WHERE is_active = 1 ORDER BY name COLLATE NOCASE');
+$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name COLLATE NOCASE');
 $clientName = '';
 
 foreach ($clients as $client) {

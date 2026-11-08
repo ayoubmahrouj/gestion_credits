@@ -124,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 | Données du formulaire
 |-------------------------------------------------------------------------*/
 
-$clients = all('SELECT id, name, phone FROM clients WHERE is_active = 1 ORDER BY name COLLATE NOCASE');
+$clients = all('SELECT id, name, phone FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name COLLATE NOCASE');
 $products = all('SELECT id, brand, name, price FROM products WHERE is_active = 1 ORDER BY brand COLLATE NOCASE, name COLLATE NOCASE');
 
 $selectedClient = (int) (post('client_id') ?: get('client_id'));

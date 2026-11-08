@@ -37,7 +37,7 @@ automatiquement au premier lancement.
 | Élément | Valeur |
 |---|---|
 | Nom | Gestion Crédits |
-| Version | 1.2 |
+| Version | 1.3 |
 | Langage | PHP 8.1+ (testé PHP 8.3.28) |
 | Base de données | SQLite 3 (fichier unique, via PDO) |
 | Serveur testé | WAMP 64 bits (Apache 2.4 + PHP 8.3) |
@@ -122,6 +122,15 @@ faire une sauvegarde avant.
 
 ## 5. Fonctionnalités
 
+### Point de vente
+- Page d'accueil après connexion (premier élément du menu) : encaissement rapide en un écran.
+- Vente possible à un **passager** (client sans compte, créé automatiquement) : paiement comptant.
+- Ligne de vente : **choisir un produit** de la liste (prix pré-rempli) **ou saisir librement** le nom
+  (le produit n'est pas créé dans le catalogue, mais reste visible sur le ticket et dans l'historique).
+- Panier JS : quantités/prix modifiables, total et reste calculés en direct.
+- Validation → vente + lignes + crédit éventuel, puis **ticket 80 mm imprimé automatiquement**.
+- Les ventes au passager n'apparaissent pas dans les soldes clients (aucun crédit).
+
 ### Clients
 - Fiche complète : nom, téléphone, adresse, plafond de crédit.
 - Solde dû calculé en temps réel (somme des crédits ouverts).
@@ -145,6 +154,9 @@ faire une sauvegarde avant.
 - Ticket 80 mm imprimé automatiquement après validation.
 - Filtres : recherche client/téléphone, période, client, statut, mode de paiement.
 - Export Excel.
+- **Admin** : modification (`sale_edit`) et suppression définitive (`sale_delete`) d'une vente.
+  Si des versements ont déjà été imputés, seuls la date et la remarque restent modifiables ;
+  la suppression libère les versements et le crédit associés.
 
 ### Crédits
 - Une ligne par vente à crédit : montant, payé, reste, échéance, statut.
@@ -159,6 +171,8 @@ faire une sauvegarde avant.
 - Refus si le montant dépasse le solde dû.
 - Filtres : recherche client, période, client, mode de paiement.
 - Export Excel.
+- **Admin** : modification (`payment_edit`, ré-imputation FIFO automatique) et suppression
+  définitive (`payment_delete`, les crédits sont recalculés).
 
 ### Rapports
 - Critères : période, client, statut de vente, mode de paiement.
@@ -197,7 +211,8 @@ faire une sauvegarde avant.
 - Thème sombre / clair.
 - Toutes les listes et tous les rapports imprimables.
 - Export Excel natif (aucune bibliothèque).
-- Aucune suppression définitive : `is_active` partout.
+- Suppression définitive réservée à l'admin : ventes et versements uniquement ;
+  clients, produits et utilisateurs restent en désactivation douce (`is_active`).
 
 ---
 
@@ -286,7 +301,7 @@ index.php  ──►  inc/config.php   (constantes, session, fuseau, dossiers)
 | `DB_FILE` | `DATA_DIR/gestion.sqlite` | Fichier de base SQLite |
 | `APP_NAME` | `Gestion Crédits` | Nom affiché (remplacé en arabe par `t('app_name')`) |
 | `CURRENCY` | `DH` | Devise affichée |
-| `VERSION` | `1.1` | Version affichée en bas de la sidebar |
+| `VERSION` | `1.3` | Version affichée en bas de la sidebar |
 | `BASE` | calculée | URL de base (`''` à la racine, `/gestion-credits-php` en sous-dossier) |
 | `DEBUG` | `true` | `false` en production : masque les erreurs PHP |
 
@@ -392,6 +407,7 @@ settings: couples clé/valeur
 | `address` | TEXT | | Adresse |
 | `credit_limit` | REAL | NOT NULL, défaut 0 | Plafond de crédit (informatif) |
 | `is_active` | INTEGER | NOT NULL, défaut 1 | Désactivation douce |
+| `is_passenger` | INTEGER | NOT NULL, défaut 0 | Client spécial « Passager » (point de vente), masqué des listes |
 | `created_at` | TEXT | défaut `datetime('now')` | Création |
 
 #### `brands` — marques
@@ -581,6 +597,7 @@ WHERE client_id = ? AND status = 'open';
 - `CREATE TABLE IF NOT EXISTS brands (...)`
 - `CREATE UNIQUE INDEX IF NOT EXISTS idx_brands_unique ...`
 - `INSERT OR IGNORE INTO brands (name) SELECT DISTINCT TRIM(brand) FROM products ...`
+- `ALTER TABLE clients ADD COLUMN is_passenger ...` si la colonne manque (`PRAGMA table_info`)
 
 Pour ajouter une évolution : compléter `migrate()` avec des instructions `IF NOT EXISTS`
 ou des tests sur `PRAGMA table_info(...)`. Ne jamais modifier `install_schema()` sans migration
@@ -639,16 +656,21 @@ http://localhost/gestion-credits-php/index.php?p=<page>&<paramètres>
 |---|---|---|---|
 | `login` | `login.php` | public | Connexion |
 | `logout` | *(routeur)* | connecté | Déconnexion |
+| `pos` | `pos.php` | connecté | **Point de vente** (page d'accueil, vente passager / libre) |
 | `dashboard` | `dashboard.php` | connecté | Tableau de bord |
 | `clients` | `clients.php` | connecté | Liste / création / édition (`&edit=ID`, `&new=1`) |
 | `client` | `client.php` | connecté | Fiche client (`&id=ID`) |
 | `products` | `products.php` | connecté | Liste / création / édition (`&edit=ID`) |
 | `sales` | `sales.php` | connecté | Liste filtrable |
-| `sale_new` | `sale_new.php` | connecté | Nouvelle vente (`&client_id=`) |
+| `sale_new` | `sale_new.php` | connecté | Nouvelle vente détaillée (`&client_id=`) |
 | `sale` | `sale.php` | connecté | Détail (`&id=`) |
+| `sale_edit` | `sale_edit.php` | **admin** | Modification d'une vente (`&id=`) |
+| `sale_delete` | `sale_delete.php` | **admin** | Suppression définitive (POST `id`) |
 | `credits` | `credits.php` | connecté | Crédits filtrables |
 | `payments` | `payments.php` | connecté | Versements (`&new=1` → redirige) |
 | `payment_new` | `payment_new.php` | connecté | Nouveau versement (`&client_id=`) |
+| `payment_edit` | `payment_edit.php` | **admin** | Modification d'un versement (`&id=`) |
+| `payment_delete` | `payment_delete.php` | **admin** | Suppression définitive (POST `id`) |
 | `reports` | `reports.php` | connecté | Rapports |
 | `stats` | `stats.php` | connecté | Statistiques (graphiques, comparatifs) |
 | `settings` | `settings.php` | connecté | Paramètres / compte / sauvegardes |
@@ -673,7 +695,7 @@ Paramètres de filtrage usuels : `q`, `from`, `to`, `status`, `method`, `client_
 | Injections SQL | 100 % requêtes préparées (PDO) via `q()`, `one()`, `all()`, `scalar()` |
 | XSS | Toute sortie passe par `e()` (`htmlspecialchars`, UTF-8) |
 | Accès aux fichiers sensibles | `.htaccess` : `Require all denied` sur `data/`, `inc/`, `pages/` |
-| Suppressions | Aucune suppression définitive de données métier (désactivation seulement) |
+| Suppressions | Définitives (admin) pour ventes et versements ; désactivation seulement pour clients, produits, utilisateurs |
 | Sauvegardes | Nom de fichier validé par expression régulière (pas de traversée de chemin) |
 | Erreurs | `DEBUG = false` en production |
 
@@ -882,6 +904,17 @@ Mettre à jour une installation :
 ---
 
 ## 19. Journal des versions
+
+### 1.3
+- Nouvelle page **Point de vente** (`pos`), affichée en premier dans le menu et après connexion.
+- Vente à un **passager** (client sans compte, créé automatiquement) : paiement comptant, ticket 80 mm.
+- Ligne de vente : produit du catalogue **ou saisie libre** du nom (conservé sur le ticket et l'historique).
+- Panier JS : quantités/prix modifiables, total et reste à payer en direct.
+- **Admin** : modification et suppression définitive des **ventes** (`sale_edit`, `sale_delete`).
+- **Admin** : modification et suppression définitive des **versements** (`payment_edit`, `payment_delete`)
+  avec ré-imputation FIFO automatique.
+- Colonne `clients.is_passenger` (migration automatique) ; le passager est masqué des listes et sélecteurs clients.
+- Traductions FR/AR et styles du point de vente.
 
 ### 1.2
 - Nouvelle page **Statistiques** : indicateurs comparés à la période précédente, évolution

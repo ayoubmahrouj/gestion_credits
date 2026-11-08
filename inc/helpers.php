@@ -245,6 +245,54 @@ function allocate_payment(int $paymentId, int $clientId, float $amount): void
     }
 }
 
+/**
+ * Client spécial « Passager » : ventes au comptoir sans compte client.
+ * Le client est créé automatiquement la première fois.
+ */
+function passenger_client(): array
+{
+    $client = one('SELECT * FROM clients WHERE is_passenger = 1 ORDER BY id LIMIT 1');
+
+    if ($client) {
+        if (! $client['is_active']) {
+            q('UPDATE clients SET is_active = 1 WHERE id = ?', [$client['id']]);
+            $client['is_active'] = 1;
+        }
+
+        return $client;
+    }
+
+    q("INSERT INTO clients (name, phone, address, credit_limit, is_active, is_passenger) VALUES ('Passager', '', '', 0, 1, 1)");
+
+    return one('SELECT * FROM clients WHERE id = ?', [(int) db()->lastInsertId()]);
+}
+
+/**
+ * Annule l'imputation d'un versement (les crédits retrouvent leur dû).
+ */
+function reverse_payment_allocations(int $paymentId): void
+{
+    $allocations = all('SELECT * FROM payment_allocations WHERE payment_id = ?', [$paymentId]);
+
+    foreach ($allocations as $allocation) {
+        $credit = one('SELECT * FROM credits WHERE id = ?', [(int) $allocation['credit_id']]);
+
+        if (! $credit) {
+            continue;
+        }
+
+        $paid = max(0, round((float) $credit['paid'] - (float) $allocation['amount'], 2));
+        $remaining = round((float) $credit['remaining'] + (float) $allocation['amount'], 2);
+
+        q(
+            'UPDATE credits SET paid = ?, remaining = ?, status = ? WHERE id = ?',
+            [$paid, $remaining, $remaining > 0.009 ? 'open' : 'paid', $credit['id']]
+        );
+    }
+
+    q('DELETE FROM payment_allocations WHERE payment_id = ?', [$paymentId]);
+}
+
 function credit_status_label(string $status): string
 {
     return $status === 'paid' ? t('status_paid') : t('status_open');

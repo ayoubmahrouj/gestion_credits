@@ -15,7 +15,7 @@ define('DB_FILE', DATA_DIR . DIRECTORY_SEPARATOR . 'gestion.sqlite');
 
 define('APP_NAME', 'Gestion Crédits');
 define('CURRENCY', 'DH');
-define('VERSION', '1.2');
+define('VERSION', '1.3');
 
 date_default_timezone_set('Africa/Casablanca');
 

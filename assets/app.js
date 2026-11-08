@@ -173,8 +173,16 @@
     });
 
     form.addEventListener('submit', function (event) {
+      var selects = lines.querySelectorAll('.line-product');
+
+      // Formulaire avec saisie libre (aucune liste de produits) : pas de contrôle.
+      if (!selects.length) {
+        return;
+      }
+
       var hasProduct = false;
-      lines.querySelectorAll('.line-product').forEach(function (select) {
+
+      selects.forEach(function (select) {
         if (select.value) hasProduct = true;
       });
 
