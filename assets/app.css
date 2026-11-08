@@ -181,7 +181,7 @@ p { margin: 0; }
 
 .table-wrap { overflow-x: auto; }
 
-table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 14px; }
 .table th {
     text-align: start; font-size: 12px; letter-spacing: .04em; text-transform: uppercase;
     color: var(--muted); font-weight: 600;
@@ -461,3 +461,5 @@ input[type="radio"] {
 .line-qty { width: 70px; }
 .line-price { width: 100px; }
 .line-product { min-width: 0; width: 100%; }
+
+.nowrap { white-space: nowrap; }

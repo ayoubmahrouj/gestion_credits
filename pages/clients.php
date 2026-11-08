@@ -142,7 +142,7 @@ print_header(t('clients'), $status === 'active' ? '' : t('show_inactive'));
                         <a href="<?= url('client', ['id' => $client['id']]) ?>" style="font-weight:600"><?= e($client['name']) ?></a>
                         <?php if ($client['address']): ?><div class="small muted"><?= e($client['address']) ?></div><?php endif; ?>
                     </td>
-                    <td><?= e($client['phone'] ?: '—') ?></td>
+                    <td class="nowrap"><?= e($client['phone'] ?: '—') ?></td>
                     <td class="num" style="font-weight:700;color:<?= $client['balance'] > 0 ? 'var(--orange)' : 'inherit' ?>"><?= money($client['balance']) ?></td>
                     <td class="num muted"><?= money($client['credit_limit']) ?></td>
                     <td>
