@@ -301,6 +301,173 @@ if (in_array($type, ['products', 'report'], true)) {
 }
 
 /* -------------------------------------------------------------------------
+| Statistiques
+|-------------------------------------------------------------------------*/
+
+if ($type === 'stats') {
+    $where = 's.date BETWEEN ? AND ?';
+    $params = [$from, $to];
+
+    $payWhere = 'p.date BETWEEN ? AND ?';
+    $payParams = [$from, $to];
+
+    if ($clientId > 0) {
+        $where .= ' AND s.client_id = ?';
+        $params[] = $clientId;
+        $payWhere .= ' AND p.client_id = ?';
+        $payParams[] = $clientId;
+    }
+
+    $count = (int) scalar("SELECT COUNT(*) FROM sales s WHERE {$where}", $params);
+    $total = (float) scalar("SELECT COALESCE(SUM(s.total), 0) FROM sales s WHERE {$where}", $params);
+    $paid = (float) scalar("SELECT COALESCE(SUM(s.paid), 0) FROM sales s WHERE {$where}", $params);
+    $paymentsSum = (float) scalar("SELECT COALESCE(SUM(p.amount), 0) FROM payments p WHERE {$payWhere}", $payParams);
+    $paymentsCount = (int) scalar("SELECT COUNT(*) FROM payments p WHERE {$payWhere}", $payParams);
+
+    $creditSql = "SELECT COALESCE(SUM(remaining), 0) FROM credits WHERE status = 'open'";
+    $creditParams = [];
+
+    $overdueSql = "SELECT COALESCE(SUM(remaining), 0) FROM credits
+                   WHERE status = 'open' AND due_date IS NOT NULL AND due_date < ?";
+    $overdueParams = [today()];
+
+    if ($clientId > 0) {
+        $creditSql .= ' AND client_id = ?';
+        $creditParams[] = $clientId;
+        $overdueSql .= ' AND client_id = ?';
+        $overdueParams[] = $clientId;
+    }
+
+    $outstanding = (float) scalar($creditSql, $creditParams);
+    $overdue = (float) scalar($overdueSql, $overdueParams);
+    $newClients = (int) scalar('SELECT COUNT(*) FROM clients WHERE date(created_at) BETWEEN ? AND ?', [$from, $to]);
+
+    $summary = [
+        ['Période', fr_date($from) . ' → ' . fr_date($to)],
+        ['Nombre de ventes', $count],
+        ['Chiffre d\'affaires', round($total, 2)],
+        ['Encaissé sur ventes', round($paid, 2)],
+        ['Vendu à crédit', round($total - $paid, 2)],
+        ['Versements reçus', round($paymentsSum, 2)],
+        ['Nombre de versements', $paymentsCount],
+        ['Total encaissé', round($paid + $paymentsSum, 2)],
+        ['Panier moyen', $count > 0 ? round($total / $count, 2) : 0],
+        ['Encours total', round($outstanding, 2)],
+        ['Dont en retard', round($overdue, 2)],
+        ['Nouveaux clients', $newClients],
+    ];
+
+    $writer->addSheet('Synthèse', ['Indicateur', 'Valeur'], $summary);
+
+    // Évolution par jour
+    $byDay = [];
+
+    foreach (all("SELECT s.date, COUNT(*) c, SUM(s.total) t, SUM(s.paid) p FROM sales s WHERE {$where} GROUP BY s.date", $params) as $row) {
+        $byDay[$row['date']] = [
+            'date' => $row['date'],
+            'count' => (int) $row['c'],
+            'total' => (float) $row['t'],
+            'paid' => (float) $row['p'],
+            'payments' => 0.0,
+        ];
+    }
+
+    foreach (all("SELECT p.date, SUM(p.amount) a FROM payments p WHERE {$payWhere} GROUP BY p.date", $payParams) as $row) {
+        $date = (string) $row['date'];
+
+        if (! isset($byDay[$date])) {
+            $byDay[$date] = ['date' => $date, 'count' => 0, 'total' => 0.0, 'paid' => 0.0, 'payments' => 0.0];
+        }
+
+        $byDay[$date]['payments'] += (float) $row['a'];
+    }
+
+    ksort($byDay);
+
+    $dayRows = [];
+    foreach ($byDay as $row) {
+        $dayRows[] = [
+            fr_date($row['date']),
+            $row['count'],
+            round($row['total'], 2),
+            round($row['paid'], 2),
+            round($row['payments'], 2),
+        ];
+    }
+
+    $writer->addSheet('Évolution', ['Date', 'Nb ventes', 'CA', 'Encaissé ventes', 'Versements'], $dayRows, [2, 3, 4]);
+
+    // Produits
+    $topProducts = all(
+        "SELECT si.product_name, SUM(si.qty) AS qty, SUM(si.total) AS revenue
+         FROM sale_items si JOIN sales s ON s.id = si.sale_id
+         WHERE {$where}
+         GROUP BY si.product_name ORDER BY revenue DESC",
+        $params
+    );
+
+    $productRows = [];
+    foreach ($topProducts as $product) {
+        $productRows[] = [
+            $product['product_name'],
+            (float) $product['qty'],
+            round((float) $product['revenue'], 2),
+        ];
+    }
+
+    $writer->addSheet('Produits', ['Produit', 'Qté vendue', 'CA'], $productRows, [2]);
+
+    // Clients
+    $topClients = all(
+        "SELECT c.name, s.client_id AS id, COUNT(s.id) AS nb, SUM(s.total) AS revenue
+         FROM sales s JOIN clients c ON c.id = s.client_id
+         WHERE {$where}
+         GROUP BY s.client_id ORDER BY revenue DESC",
+        $params
+    );
+
+    $clientRows = [];
+    foreach ($topClients as $row) {
+        $clientRows[] = [
+            $row['name'],
+            (int) $row['nb'],
+            round((float) $row['revenue'], 2),
+            round(client_balance((int) $row['id']), 2),
+        ];
+    }
+
+    $writer->addSheet('Clients', ['Client', 'Nb ventes', 'CA', 'Solde dû'], $clientRows, [2, 3]);
+
+    // Crédits ouverts
+    $openCreditsWhere = "cr.status = 'open'";
+    $openCreditsParams = [];
+
+    if ($clientId > 0) {
+        $openCreditsWhere .= ' AND cr.client_id = ?';
+        $openCreditsParams[] = $clientId;
+    }
+
+    $openCredits = all(
+        "SELECT cr.*, c.name AS client_name FROM credits cr JOIN clients c ON c.id = cr.client_id
+         WHERE {$openCreditsWhere} ORDER BY cr.created_at",
+        $openCreditsParams
+    );
+
+    $creditRows = [];
+    foreach ($openCredits as $credit) {
+        $creditRows[] = [
+            $credit['client_name'],
+            round((float) $credit['amount'], 2),
+            round((float) $credit['paid'], 2),
+            round((float) $credit['remaining'], 2),
+            fr_date($credit['due_date']),
+        ];
+    }
+
+    $writer->addSheet('Crédits en cours', ['Client', 'Montant', 'Payé', 'Reste', 'Échéance'], $creditRows, [1, 2, 3]);
+}
+
+/* -------------------------------------------------------------------------
 | Envoi du fichier
 |-------------------------------------------------------------------------*/
 

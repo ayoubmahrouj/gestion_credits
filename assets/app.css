@@ -376,6 +376,32 @@ input[type="radio"] {
 .quick-add:hover { background: var(--gold-soft); border-color: var(--gold); }
 .quick-field { display: flex; gap: 8px; align-items: stretch; }
 .quick-field select { flex: 1; min-width: 0; }
+
+/* ---------------- Statistiques ---------------- */
+
+.chart { width: 100%; height: auto; color: var(--muted); display: block; padding: 10px 14px 4px; box-sizing: border-box; }
+.chart-donut { width: 190px; max-width: 100%; margin: 0 auto; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 16px; font-size: 12.5px; color: var(--muted); }
+[dir="rtl"] .stat-value { direction: ltr; unicode-bidi: isolate; text-align: right; }
+[dir="rtl"] .hbar-row strong,
+[dir="rtl"] .legend-item strong { direction: ltr; unicode-bidi: isolate; }
+.chart-legend-col { flex-direction: column; gap: 8px; padding: 0; align-items: flex-start; }
+.legend-item { display: inline-flex; align-items: center; gap: 7px; }
+.legend-item i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.donut-wrap { display: flex; align-items: center; gap: 24px; padding: 18px 20px; flex-wrap: wrap; }
+.donut-wrap .chart-donut { flex: 0 0 180px; margin: 0; }
+.donut-wrap .chart-legend-col { flex: 1; min-width: 160px; }
+.hbar-list { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px 18px; }
+.hbar-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; margin-bottom: 6px; }
+.hbar-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hbar-row strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hbar .bar { height: 7px; }
+.quick-ranges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -6px; }
+.chip.is-active { color: var(--gold-2); border-color: var(--gold); background: var(--gold-soft); }
+[data-theme="light"] .chip.is-active { color: var(--gold); }
+.table-compact { min-width: 0; }
+table.table.table-compact { min-width: 0; }
+.table-compact th, .table-compact td { padding: 8px 10px; font-size: 13px; }
 [data-theme="light"] .quick-add { color: var(--gold); }
 
 /* ---------------- Ticket 80 mm ---------------- */

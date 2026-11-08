@@ -127,6 +127,8 @@ layout_start(t('dashboard'), 'dashboard');
     <a class="btn btn-primary" href="<?= url('sale_new') ?>">+ <?= e(t('sale_new')) ?></a>
     <a class="btn btn-ghost" href="<?= url('payment_new') ?>">+ <?= e(t('payment_new')) ?></a>
     <a class="btn btn-ghost" href="<?= url('clients', ['new' => 1]) ?>">+ <?= e(t('client_new')) ?></a>
+    <div class="spacer"></div>
+    <a class="btn btn-ghost" href="<?= url('stats') ?>"><?= render_icon('activity') ?><?= e(t('nav_stats')) ?></a>
 </div>
 
 <?php layout_end(); ?>

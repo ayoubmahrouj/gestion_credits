@@ -37,7 +37,7 @@ automatiquement au premier lancement.
 | Élément | Valeur |
 |---|---|
 | Nom | Gestion Crédits |
-| Version | 1.1 |
+| Version | 1.2 |
 | Langage | PHP 8.1+ (testé PHP 8.3.28) |
 | Base de données | SQLite 3 (fichier unique, via PDO) |
 | Serveur testé | WAMP 64 bits (Apache 2.4 + PHP 8.3) |
@@ -168,6 +168,19 @@ faire une sauvegarde avant.
 - Détail des ventes et des versements de la période.
 - **Impression** et **export Excel** du rapport complet.
 
+### Statistiques
+- Page dédiée avec graphiques (SVG natif, aucune bibliothèque).
+- Période libre (du / au) + raccourcis : aujourd'hui, 7 jours, 30 jours, ce mois, cette année.
+- Filtre par client.
+- Indicateurs comparés à la période précédente : chiffre d'affaires, total encaissé,
+  vendu à crédit, encours, nombre de ventes, panier moyen, versements, nouveaux clients,
+  taux d'encaissement, montant en retard.
+- Graphique d'évolution (CA / encaissé / versements) en jours, semaines ou mois selon la durée.
+- Répartition des modes de paiement et des statuts de vente (anneaux).
+- Top produits, top clients, ancienneté des crédits (barres).
+- Tableau détaillé par période (ventes, CA, encaissé, versements) avec totaux.
+- **Impression** et **export Excel** (5 feuilles).
+
 ### Paramètres
 - Informations du commerce (affichées sur les tickets).
 - Délai de crédit par défaut.
@@ -227,6 +240,7 @@ index.php  ──►  inc/config.php   (constantes, session, fuseau, dossiers)
 | `inc/helpers.php` | Échappement, URLs, redirections, POST/GET, flash, CSRF, auth, rôles, i18n, dates, calculs de crédit, imputation des paiements |
 | `inc/lang.php` | Dictionnaires `fr` et `ar` (tableau associatif) |
 | `inc/layout.php` | Gabarit HTML (sidebar, topbar, flash), en-tête et bouton d'impression, gabarit de connexion |
+| `inc/charts.php` | Génération SVG des graphiques (barres groupées, anneaux) sans dépendance |
 | `inc/xlsx.php` | Classe `XlsxWriter` : génération `.xlsx` avec `ZipArchive` |
 | `pages/*.php` | Une page = un écran (liste, formulaire, détail, traitement POST) |
 | `assets/app.css` | Thème sombre/clair, composants, ticket, RTL, impression |
@@ -636,6 +650,7 @@ http://localhost/gestion-credits-php/index.php?p=<page>&<paramètres>
 | `payments` | `payments.php` | connecté | Versements (`&new=1` → redirige) |
 | `payment_new` | `payment_new.php` | connecté | Nouveau versement (`&client_id=`) |
 | `reports` | `reports.php` | connecté | Rapports |
+| `stats` | `stats.php` | connecté | Statistiques (graphiques, comparatifs) |
 | `settings` | `settings.php` | connecté | Paramètres / compte / sauvegardes |
 | `users` | `users.php` | **admin** | Utilisateurs |
 | `ticket` | `ticket.php` | connecté | Ticket 80 mm (`&type=sale\|payment&id=&autoprint=1`) |
@@ -712,7 +727,8 @@ Fichier créé dans `data/exports/`, envoyé au navigateur puis supprimé.
 | `payments` | Versements | N°, date, client, montant, mode, remarque |
 | `clients` | Clients | N°, nom, téléphone, adresse, plafond, solde dû, statut |
 | `products` | Produits | N°, marque, désignation, description, prix, statut |
-| `report` | Synthèse, Ventes, Articles, Crédits, Versements, Clients, Produits | Rapport complet filtrable |
+| `reports` → `report` | Synthèse, Ventes, Articles, Crédits, Versements, Clients, Produits | Rapport complet filtrable |
+| `stats` | Synthèse, Évolution, Produits, Clients, Crédits en cours | Statistiques de la période filtrée |
 
 Les colonnes monétaires utilisent le format Excel `#,##0.00`.
 
@@ -809,6 +825,7 @@ gestion-credits-php/
 │   ├── helpers.php            # Sécurité, auth, i18n, calculs crédits
 │   ├── lang.php               # Traductions FR / AR
 │   ├── layout.php             # Gabarit HTML + impression
+│   ├── charts.php             # Graphiques SVG natifs (barres, anneaux)
 │   ├── xlsx.php               # Générateur Excel natif
 │   └── .htaccess              # Accès interdit
 ├── pages/
@@ -824,6 +841,7 @@ gestion-credits-php/
 │   ├── payments.php           # Versements
 │   ├── payment_new.php        # Nouveau versement
 │   ├── reports.php            # Rapports
+│   ├── stats.php              # Statistiques (graphiques, comparatifs)
 │   ├── settings.php           # Paramètres + sauvegardes
 │   ├── users.php              # Utilisateurs (admin)
 │   ├── ticket.php             # Ticket / reçu 80 mm
@@ -864,6 +882,14 @@ Mettre à jour une installation :
 ---
 
 ## 19. Journal des versions
+
+### 1.2
+- Nouvelle page **Statistiques** : indicateurs comparés à la période précédente, évolution
+  (jour / semaine / mois), répartition des modes de paiement et des statuts, top produits,
+  top clients, ancienneté des crédits, détail par période.
+- Graphiques **SVG natifs** (`inc/charts.php`), sans bibliothèque externe.
+- Raccourcis de période (aujourd'hui, 7 j, 30 j, mois, année) et filtre par client.
+- Export Excel `stats` (Synthèse, Évolution, Produits, Clients, Crédits en cours) + impression.
 
 ### 1.1
 - Produits : bouton **+** pour créer une marque directement depuis le formulaire produit.
