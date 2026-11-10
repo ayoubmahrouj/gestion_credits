@@ -11,11 +11,17 @@ define('APP_ROOT', dirname(__DIR__));
 define('DATA_DIR', APP_ROOT . DIRECTORY_SEPARATOR . 'data');
 define('BACKUP_DIR', DATA_DIR . DIRECTORY_SEPARATOR . 'backups');
 define('EXPORT_DIR', DATA_DIR . DIRECTORY_SEPARATOR . 'exports');
-define('DB_FILE', DATA_DIR . DIRECTORY_SEPARATOR . 'gestion.sqlite');
+
+// MySQL (XAMPP par défaut : root sans mot de passe)
+define('DB_HOST', '127.0.0.1');
+define('DB_PORT', '3306');
+define('DB_NAME', 'gestion_credits_php');
+define('DB_USER', 'root');
+define('DB_PASS', '');
 
 define('APP_NAME', 'Gestion Crédits');
 define('CURRENCY', 'DH');
-define('VERSION', '1.3');
+define('VERSION', '1.4');
 
 date_default_timezone_set('Africa/Casablanca');
 
@@ -40,6 +46,6 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 }
 
 // Affichage des erreurs : activé en local, désactivable en production.
-define('DEBUG', true);
+define('DEBUG', false);
 ini_set('display_errors', DEBUG ? '1' : '0');
 error_reporting(E_ALL);

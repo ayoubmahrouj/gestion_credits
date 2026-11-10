@@ -12,6 +12,7 @@ declare(strict_types=1);
 require __DIR__ . '/inc/config.php';
 require __DIR__ . '/inc/db.php';
 require __DIR__ . '/inc/helpers.php';
+require_once __DIR__ . '/inc/pdf.php';
 require __DIR__ . '/inc/layout.php';
 
 // Changement de langue (FR / AR)

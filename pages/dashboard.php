@@ -23,6 +23,22 @@ $recentSales = all(
      ORDER BY s.date DESC, s.id DESC LIMIT 8'
 );
 
+$recentItems = [];
+
+if ($recentSales) {
+    $ids = array_map(fn ($sale) => (int) $sale['id'], $recentSales);
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $rows = all(
+        "SELECT sale_id, brand, product_name, qty FROM sale_items
+         WHERE sale_id IN ({$placeholders}) ORDER BY id",
+        $ids
+    );
+
+    foreach ($rows as $row) {
+        $recentItems[(int) $row['sale_id']][] = $row;
+    }
+}
+
 $debtors = all(
     "SELECT c.id, c.name, c.phone, SUM(cr.remaining) AS balance, COUNT(*) AS credits
      FROM credits cr JOIN clients c ON c.id = cr.client_id
@@ -80,7 +96,14 @@ layout_start(t('dashboard'), 'dashboard');
                     <?php foreach ($recentSales as $sale): ?>
                         <tr>
                             <td><?= fr_date($sale['date']) ?></td>
-                            <td><a href="<?= url('client', ['id' => $sale['client_id']]) ?>"><?= e($sale['client_name']) ?></a></td>
+                            <td>
+                                <a href="<?= url('client', ['id' => $sale['client_id']]) ?>"><?= e($sale['client_name']) ?></a>
+                                <?php foreach ($recentItems[(int) $sale['id']] ?? [] as $item): ?>
+                                    <div class="small muted">
+                                        <?= e(item_label($item)) ?> × <?= e(rtrim(rtrim(number_format((float) $item['qty'], 2, ',', ' '), '0'), ',')) ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </td>
                             <td class="num"><?= money($sale['total']) ?></td>
                             <td>
                                 <?php if ($sale['status'] === 'paid'): ?>
@@ -128,6 +151,7 @@ layout_start(t('dashboard'), 'dashboard');
     <a class="btn btn-ghost" href="<?= url('payment_new') ?>">+ <?= e(t('payment_new')) ?></a>
     <a class="btn btn-ghost" href="<?= url('clients', ['new' => 1]) ?>">+ <?= e(t('client_new')) ?></a>
     <div class="spacer"></div>
+    <a class="btn btn-ghost" href="<?= url('settings') ?>#backup"><?= render_icon('file') ?><?= e(t('backup')) ?></a>
     <a class="btn btn-ghost" href="<?= url('stats') ?>"><?= render_icon('activity') ?><?= e(t('nav_stats')) ?></a>
 </div>
 

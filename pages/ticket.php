@@ -47,7 +47,7 @@ if ($type === 'sale') {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($type === 'sale' ? t('print_ticket') : t('payment_receipt')) ?> #<?= $id ?></title>
-    <link rel="stylesheet" href="<?= BASE ?>/assets/app.css">
+    <link rel="stylesheet" href="<?= asset_url('app.css') ?>">
     <style>
         body { background: #1a1d23; }
         @media print { body { background: #fff; } }
@@ -57,6 +57,7 @@ if ($type === 'sale') {
 
 <div class="ticket-actions no-print" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
     <button class="btn btn-primary" type="button" onclick="window.print()"><?= e(t('print')) ?></button>
+    <?php pdf_button($type, $id); ?>
     <?php if ($type === 'sale'): ?>
         <a class="btn btn-ghost" href="<?= url('sales') ?>"><?= e(t('sales')) ?></a>
         <a class="btn btn-ghost" href="<?= url('sale_new') ?>">+ <?= e(t('sale_new')) ?></a>
@@ -107,7 +108,7 @@ if ($type === 'sale') {
             <tbody>
             <?php foreach ($items as $item): ?>
                 <tr>
-                    <td><?= e($item['product_name']) ?></td>
+                    <td><?= e(item_label($item)) ?></td>
                     <td class="num"><?= rtrim(rtrim(number_format((float) $item['qty'], 2, ',', ' '), '0'), ',') ?></td>
                     <td class="num"><?= number_format((float) $item['total'], 2, ',', ' ') ?></td>
                 </tr>

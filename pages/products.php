@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // La marque utilisée est enregistrée dans la liste des marques.
             if ($brand !== '') {
-                q('INSERT OR IGNORE INTO brands (name) VALUES (?)', [$brand]);
+                q('INSERT IGNORE INTO brands (name) VALUES (?)', [$brand]);
             }
 
             flash(t('saved'));
@@ -105,7 +105,7 @@ if ($status === 'active') {
     $sql .= ' AND is_active = 0';
 }
 
-$sql .= ' ORDER BY brand COLLATE NOCASE, name COLLATE NOCASE';
+$sql .= ' ORDER BY brand, name';
 $products = all($sql, $params);
 
 // Liste des marques : table brands + marques déjà présentes sur des produits.
@@ -115,7 +115,7 @@ $brands = array_column(
             SELECT name FROM brands WHERE name <> ''
             UNION
             SELECT brand AS name FROM products WHERE brand <> ''
-         ) ORDER BY name COLLATE NOCASE"
+         ) AS t ORDER BY name"
     ),
     'name'
 );
@@ -161,8 +161,7 @@ print_header(t('products'));
         <table class="table">
             <thead>
             <tr>
-                <th><?= e(t('brand')) ?></th>
-                <th><?= e(t('designation')) ?></th>
+                <th><?= e(t('product')) ?></th>
                 <th class="num"><?= e(t('price')) ?></th>
                 <th><?= e(t('status')) ?></th>
                 <th class="actions"><?= e(t('actions')) ?></th>
@@ -170,13 +169,12 @@ print_header(t('products'));
             </thead>
             <tbody>
             <?php if (! $products): ?>
-                <tr><td colspan="5" class="empty"><?= e(t('no_results')) ?></td></tr>
+                <tr><td colspan="4" class="empty"><?= e(t('no_results')) ?></td></tr>
             <?php endif; ?>
             <?php foreach ($products as $product): ?>
                 <tr>
-                    <td style="font-weight:600" class="nowrap"><?= e($product['brand'] ?: '—') ?></td>
                     <td>
-                        <?= e($product['name']) ?>
+                        <span style="font-weight:600"><?= e(product_label($product)) ?></span>
                         <?php if ($product['description']): ?><div class="small muted"><?= e($product['description']) ?></div><?php endif; ?>
                     </td>
                     <td class="num"><?= money($product['price']) ?></td>

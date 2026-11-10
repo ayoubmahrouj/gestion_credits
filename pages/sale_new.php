@@ -48,7 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $lines[] = [
             'product_id' => $productId,
-            'name' => ($product['brand'] !== '' ? $product['brand'] . ' — ' : '') . $product['name'],
+            'brand' => (string) $product['brand'],
+            'name' => (string) $product['name'],
             'qty' => $qty,
             'price' => $price,
             'total' => round($qty * $price, 2),
@@ -90,8 +91,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             foreach ($lines as $line) {
                 q(
-                    'INSERT INTO sale_items (sale_id, product_id, product_name, qty, unit_price, total) VALUES (?, ?, ?, ?, ?, ?)',
-                    [$saleId, $line['product_id'], $line['name'], $line['qty'], $line['price'], $line['total']]
+                    'INSERT INTO sale_items (sale_id, product_id, brand, product_name, qty, unit_price, total) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    [$saleId, $line['product_id'], $line['brand'], $line['name'], $line['qty'], $line['price'], $line['total']]
                 );
 
             }
@@ -124,8 +125,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 | Données du formulaire
 |-------------------------------------------------------------------------*/
 
-$clients = all('SELECT id, name, phone FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name COLLATE NOCASE');
-$products = all('SELECT id, brand, name, price FROM products WHERE is_active = 1 ORDER BY brand COLLATE NOCASE, name COLLATE NOCASE');
+$clients = all('SELECT id, name, phone FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name');
+$products = all('SELECT id, brand, name, price FROM products WHERE is_active = 1 ORDER BY brand, name');
 
 $selectedClient = (int) (post('client_id') ?: get('client_id'));
 $selectedDate = (string) (post('date') ?: today());
@@ -187,9 +188,44 @@ layout_start(t('sale_new'), 'sales');
 
     <div class="card">
         <div class="card-head">
-            <h2><?= e(t('items')) ?></h2>
-            <button class="btn btn-ghost btn-sm" type="button" data-add-line>+ <?= e(t('add_line')) ?></button>
+            <h2><?= e(t('items')) ?> <span class="muted small">· <?= e(t('cart')) ?></span></h2>
         </div>
+
+        <div class="card-body" style="border-bottom:1px solid var(--line)">
+            <div class="form-row-3">
+                <div class="field">
+                    <span><?= e(t('product')) ?></span>
+                    <div style="display:flex;gap:8px;align-items:stretch">
+                        <select id="cart-product" style="flex:1;min-width:0">
+                            <option value="">— <?= e(t('product')) ?> —</option>
+                            <?php foreach ($products as $product): ?>
+                                <option value="<?= (int) $product['id'] ?>" data-price="<?= e((string) $product['price']) ?>">
+                                    <?= e(product_label($product)) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button class="btn btn-ghost btn-sm" type="button"
+                                data-action="modal-open" data-target="cart-product-modal">
+                            <?= render_icon('plus') ?><?= e(t('product_new')) ?>
+                        </button>
+                    </div>
+                </div>
+                <label class="field">
+                    <span><?= e(t('qty')) ?></span>
+                    <input type="number" id="cart-qty" step="0.01" min="0.01" value="1">
+                </label>
+                <label class="field">
+                    <span><?= e(t('unit_price')) ?></span>
+                    <input type="number" id="cart-price" step="0.01" min="0" value="0">
+                </label>
+            </div>
+            <div style="margin-top:12px">
+                <button class="btn btn-primary" type="button" id="cart-add">
+                    <?= render_icon('plus') ?><?= e(t('add_to_cart_long')) ?>
+                </button>
+            </div>
+        </div>
+
         <div class="table-wrap">
             <table class="table">
                 <thead>
@@ -202,6 +238,9 @@ layout_start(t('sale_new'), 'sales');
                 </tr>
                 </thead>
                 <tbody id="sale-lines">
+                <tr id="sale-cart-empty" class="empty">
+                    <td colspan="5"><?= e(t('pos_cart_empty')) ?></td>
+                </tr>
                 <?php
                 $oldIds = (array) post('product_id', []);
                 $oldQtys = (array) post('qty', []);
@@ -220,8 +259,9 @@ layout_start(t('sale_new'), 'sales');
                                     <?php foreach ($products as $product): ?>
                                         <option value="<?= (int) $product['id'] ?>"
                                                 data-price="<?= e((string) $product['price']) ?>"
+                                                data-brand="<?= e((string) $product['brand']) ?>"
                                                 <?= $oldId === (int) $product['id'] ? 'selected' : '' ?>>
-                                            <?= e(($product['brand'] !== '' ? $product['brand'] . ' — ' : '') . $product['name']) ?>
+                                            <?= e(product_label($product)) ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -252,7 +292,7 @@ layout_start(t('sale_new'), 'sales');
                 <input type="hidden" name="total" id="sale-total-input" value="0">
                 <div class="row">
                     <span><?= e(t('paid_now')) ?></span>
-                    <input type="number" step="0.01" min="0" name="paid" id="sale-paid" data-auto="1" value="<?= e(post('paid', '0')) ?>" style="width:130px;text-align:end">
+                    <input type="number" step="0.01" min="0" name="paid" id="sale-paid" data-auto="0" value="<?= e(post('paid', '0')) ?>" style="width:130px;text-align:end">
                 </div>
                 <div class="row"><span><?= e(t('remaining')) ?></span><strong id="sale-remaining" style="color:var(--orange)">0,00</strong></div>
                 <button class="btn btn-primary btn-block" type="submit" style="margin-top:8px"><?= e(t('sale_submit')) ?></button>
@@ -268,8 +308,10 @@ layout_start(t('sale_new'), 'sales');
                 <select name="product_id[]" class="line-product" style="flex:1">
                     <option value="">— <?= e(t('product')) ?> —</option>
                     <?php foreach ($products as $product): ?>
-                        <option value="<?= (int) $product['id'] ?>" data-price="<?= e((string) $product['price']) ?>">
-                            <?= e(($product['brand'] !== '' ? $product['brand'] . ' — ' : '') . $product['name']) ?>
+                        <option value="<?= (int) $product['id'] ?>"
+                                data-price="<?= e((string) $product['price']) ?>"
+                                data-brand="<?= e((string) $product['brand']) ?>">
+                            <?= e(product_label($product)) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -309,7 +351,7 @@ layout_start(t('sale_new'), 'sales');
     </div>
 </div>
 
-<!-- Ajout rapide : produit -->
+<!-- Ajout rapide : produit (ligne) -->
 <div class="modal" id="quick-product-modal">
     <div class="modal-backdrop"></div>
     <div class="modal-box" style="max-width:520px">
@@ -318,6 +360,40 @@ layout_start(t('sale_new'), 'sales');
             <button class="btn btn-ghost btn-sm" type="button" data-action="modal-close"><?= e(t('close')) ?></button>
         </div>
         <form class="modal-body form" data-quick-form="product_quick" data-target="__line-product__">
+            <input type="hidden" name="_token" value="<?= csrf() ?>">
+            <div class="form-row">
+                <label class="field">
+                    <span><?= e(t('brand')) ?></span>
+                    <input type="text" name="brand">
+                </label>
+                <label class="field">
+                    <span><?= e(t('designation')) ?> *</span>
+                    <input type="text" name="name" required>
+                </label>
+            </div>
+            <div class="form-row">
+                <label class="field">
+                    <span><?= e(t('price')) ?> *</span>
+                    <input type="number" step="0.01" min="0" name="price" required>
+                </label>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px">
+                <button class="btn btn-ghost" type="button" data-action="modal-close"><?= e(t('cancel')) ?></button>
+                <button class="btn btn-primary" type="submit"><?= e(t('save')) ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Ajout rapide : produit (panier) -->
+<div class="modal" id="cart-product-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" style="max-width:520px">
+        <div class="modal-head">
+            <h2><?= e(t('product_new')) ?></h2>
+            <button class="btn btn-ghost btn-sm" type="button" data-action="modal-close"><?= e(t('close')) ?></button>
+        </div>
+        <form class="modal-body form" data-quick-form="product_quick" data-target="cart-product">
             <input type="hidden" name="_token" value="<?= csrf() ?>">
             <div class="form-row">
                 <label class="field">

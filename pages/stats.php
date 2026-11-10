@@ -280,10 +280,10 @@ foreach (['paid', 'partial', 'credit'] as $key) {
 |-------------------------------------------------------------------------*/
 
 $topProducts = all(
-    "SELECT si.product_name, SUM(si.qty) AS qty, SUM(si.total) AS revenue
+    "SELECT si.brand, si.product_name, SUM(si.qty) AS qty, SUM(si.total) AS revenue
      FROM sale_items si JOIN sales s ON s.id = si.sale_id
      WHERE {$salesWhere}
-     GROUP BY si.product_name ORDER BY revenue DESC LIMIT 8",
+     GROUP BY si.brand, si.product_name ORDER BY revenue DESC LIMIT 8",
     $salesParams
 );
 
@@ -349,7 +349,7 @@ $agingRows = [
 | Clients (filtre)
 |-------------------------------------------------------------------------*/
 
-$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name COLLATE NOCASE');
+$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name');
 $clientName = '';
 
 foreach ($clients as $client) {
@@ -392,7 +392,7 @@ $moneyBar = static function (array $rows): void {
 $productRows = [];
 foreach ($topProducts as $product) {
     $productRows[] = [
-        'label' => $product['product_name'],
+        'label' => item_label($product),
         'value' => (float) $product['revenue'],
         'meta' => rtrim(rtrim(number_format((float) $product['qty'], 2, ',', ' '), '0'), ',') . ' ' . t('qty'),
         'color' => $palette['gold'],

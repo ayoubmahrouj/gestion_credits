@@ -65,7 +65,7 @@ foreach ($credits as $credit) {
     }
 }
 
-$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name COLLATE NOCASE');
+$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name');
 
 layout_start(t('credits'), 'credits');
 print_header(t('credits'), $status === 'open' ? t('status_open') : '');
@@ -115,6 +115,7 @@ print_header(t('credits'), $status === 'open' ? t('status_open') : '');
     </form>
     <div class="spacer"></div>
     <a class="btn btn-ghost" href="<?= url('export', ['type' => 'credits', 'status' => $status]) ?>"><?= e(t('export_excel')) ?></a>
+    <?php pdf_button('credits', 0, ['q' => $q, 'status' => $status, 'overdue' => $overdue, 'from' => $from, 'to' => $to, 'client_id' => $clientId]); ?>
     <?php print_button(); ?>
 </div>
 

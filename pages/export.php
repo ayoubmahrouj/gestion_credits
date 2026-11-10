@@ -85,7 +85,8 @@ if (in_array($type, ['sales', 'report'], true)) {
             (int) $item['sale_id'],
             fr_date($item['date']),
             $item['client_name'],
-            $item['product_name'],
+            item_brand($item),
+            item_name($item),
             (float) $item['qty'],
             (float) $item['unit_price'],
             (float) $item['total'],
@@ -94,9 +95,9 @@ if (in_array($type, ['sales', 'report'], true)) {
 
     $writer->addSheet(
         'Articles',
-        ['N° vente', 'Date', 'Client', 'Produit', 'Qté', 'Prix unitaire', 'Total'],
+        ['N° vente', 'Date', 'Client', 'Marque', 'Produit', 'Qté', 'Prix unitaire', 'Total'],
         $itemRows,
-        [5, 6]
+        [6, 7]
     );
 
     if ($type === 'report') {
@@ -239,7 +240,7 @@ if (in_array($type, ['clients', 'report'], true)) {
 
     $clients = all(
         "SELECT c.*, COALESCE((SELECT SUM(remaining) FROM credits cr WHERE cr.client_id = c.id AND cr.status = 'open'), 0) AS balance
-         FROM clients c WHERE {$where} ORDER BY c.name COLLATE NOCASE",
+         FROM clients c WHERE {$where} ORDER BY c.name",
         $params
     );
 
@@ -278,7 +279,7 @@ if (in_array($type, ['products', 'report'], true)) {
         $params[] = '%' . $q . '%';
     }
 
-    $products = all("SELECT p.* FROM products p WHERE {$where} ORDER BY p.brand COLLATE NOCASE, p.name COLLATE NOCASE", $params);
+    $products = all("SELECT p.* FROM products p WHERE {$where} ORDER BY p.brand, p.name", $params);
 
     $rows = [];
     foreach ($products as $product) {
@@ -399,23 +400,24 @@ if ($type === 'stats') {
 
     // Produits
     $topProducts = all(
-        "SELECT si.product_name, SUM(si.qty) AS qty, SUM(si.total) AS revenue
+        "SELECT si.brand, si.product_name, SUM(si.qty) AS qty, SUM(si.total) AS revenue
          FROM sale_items si JOIN sales s ON s.id = si.sale_id
          WHERE {$where}
-         GROUP BY si.product_name ORDER BY revenue DESC",
+         GROUP BY si.brand, si.product_name ORDER BY revenue DESC",
         $params
     );
 
     $productRows = [];
     foreach ($topProducts as $product) {
         $productRows[] = [
-            $product['product_name'],
+            item_brand($product),
+            item_name($product),
             (float) $product['qty'],
             round((float) $product['revenue'], 2),
         ];
     }
 
-    $writer->addSheet('Produits', ['Produit', 'Qté vendue', 'CA'], $productRows, [2]);
+    $writer->addSheet('Produits', ['Marque', 'Produit', 'Qté vendue', 'CA'], $productRows, [3]);
 
     // Clients
     $topClients = all(

@@ -72,7 +72,7 @@ if ($owed === '1') {
     $sql .= ' AND balance > 0';
 }
 
-$sql .= ' ORDER BY c.name COLLATE NOCASE';
+$sql .= ' ORDER BY c.name';
 $clients = all($sql, $params);
 
 /* ---------------------------- Édition / ajout --------------------------- */

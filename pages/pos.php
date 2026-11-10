@@ -35,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     foreach ($names as $index => $rawName) {
         $name = trim((string) $rawName);
+        $brand = '';
         $qty = (float) ($qtys[$index] ?? 0);
         $price = max(0, (float) str_replace(',', '.', (string) ($prices[$index] ?? 0)));
         $productId = (int) ($productIds[$index] ?? 0);
@@ -47,7 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $product = one('SELECT * FROM products WHERE id = ? AND is_active = 1', [$productId]);
 
             if ($product) {
-                $name = ($product['brand'] !== '' ? $product['brand'] . ' — ' : '') . $product['name'];
+                $brand = (string) $product['brand'];
+                $name = (string) $product['name'];
             } else {
                 $productId = 0;
             }
@@ -55,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $lines[] = [
             'product_id' => $productId > 0 ? $productId : null,
+            'brand' => $brand,
             'name' => $name,
             'qty' => $qty,
             'price' => $price,
@@ -97,8 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             foreach ($lines as $line) {
                 q(
-                    'INSERT INTO sale_items (sale_id, product_id, product_name, qty, unit_price, total) VALUES (?, ?, ?, ?, ?, ?)',
-                    [$saleId, $line['product_id'], $line['name'], $line['qty'], $line['price'], $line['total']]
+                    'INSERT INTO sale_items (sale_id, product_id, brand, product_name, qty, unit_price, total) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    [$saleId, $line['product_id'], $line['brand'], $line['name'], $line['qty'], $line['price'], $line['total']]
                 );
             }
 
@@ -131,15 +134,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 |-------------------------------------------------------------------------*/
 
 $passenger = passenger_client();
-$clients = all('SELECT id, name, phone FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name COLLATE NOCASE');
-$products = all('SELECT id, brand, name, price FROM products WHERE is_active = 1 ORDER BY brand COLLATE NOCASE, name COLLATE NOCASE');
+$clients = all('SELECT id, name, phone FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name');
+$products = all('SELECT id, brand, name, price FROM products WHERE is_active = 1 ORDER BY brand, name');
 
 $selectedClient = (int) (post('client_id') ?: $passenger['id']);
 $productData = [];
 
 foreach ($products as $product) {
-    $label = ($product['brand'] !== '' ? $product['brand'] . ' — ' : '') . $product['name'];
-    $productData[] = ['label' => $label, 'id' => (int) $product['id'], 'price' => (float) $product['price']];
+    $productData[] = ['label' => product_label($product), 'id' => (int) $product['id'], 'price' => (float) $product['price']];
 }
 
 layout_start(t('pos'), 'pos');

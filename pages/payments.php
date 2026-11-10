@@ -44,7 +44,7 @@ foreach ($payments as $payment) {
     $sumAmount += (float) $payment['amount'];
 }
 
-$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name COLLATE NOCASE');
+$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name');
 
 layout_start(t('payments'), 'payments');
 print_header(t('payments'), fr_date($from) . ' → ' . fr_date($to));
@@ -88,6 +88,7 @@ print_header(t('payments'), fr_date($from) . ' → ' . fr_date($to));
     </form>
     <div class="spacer"></div>
     <a class="btn btn-ghost" href="<?= url('export', ['type' => 'payments', 'from' => $from, 'to' => $to]) ?>"><?= e(t('export_excel')) ?></a>
+    <?php pdf_button('payments', 0, ['q' => $q, 'from' => $from, 'to' => $to, 'method' => $method, 'client_id' => $clientId]); ?>
     <?php print_button(); ?>
     <a class="btn btn-primary" href="<?= url('payment_new') ?>">+ <?= e(t('payment_new')) ?></a>
 </div>

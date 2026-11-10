@@ -2,7 +2,10 @@
 declare(strict_types=1);
 
 /**
- * Connexion SQLite + création du schéma au premier lancement.
+ * Connexion MySQL (PHP natif, PDO).
+ *
+ * La base et les tables sont créées par le script SQL fourni
+ * (database/schema_mysql.sql). Aucune création automatique ici.
  */
 function db(): PDO
 {
@@ -12,187 +15,19 @@ function db(): PDO
         return $pdo;
     }
 
-    $fresh = ! file_exists(DB_FILE);
+    $dsn = sprintf(
+        'mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
+        DB_HOST,
+        DB_PORT,
+        DB_NAME
+    );
 
-    $pdo = new PDO('sqlite:' . DB_FILE, null, null, [
+    $pdo = new PDO($dsn, DB_USER, DB_PASS, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
-    $pdo->exec('PRAGMA foreign_keys = ON');
-    $pdo->exec('PRAGMA journal_mode = WAL');
-
-    if ($fresh) {
-        install_schema($pdo);
-        seed_data($pdo);
-    }
-
-    migrate($pdo);
 
     return $pdo;
-}
-
-function install_schema(PDO $pdo): void
-{
-    $pdo->exec(<<<'SQL'
-CREATE TABLE users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    username TEXT NOT NULL UNIQUE,
-    password TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'admin',
-    is_active INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE clients (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    phone TEXT,
-    address TEXT,
-    credit_limit REAL NOT NULL DEFAULT 0,
-    is_active INTEGER NOT NULL DEFAULT 1,
-    is_passenger INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    brand TEXT NOT NULL DEFAULT '',
-    name TEXT NOT NULL,
-    description TEXT,
-    price REAL NOT NULL DEFAULT 0,
-    is_active INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE UNIQUE INDEX idx_products_unique ON products (brand COLLATE NOCASE, name COLLATE NOCASE);
-
-CREATE TABLE brands (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    is_active INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE UNIQUE INDEX idx_brands_unique ON brands (name COLLATE NOCASE);
-
-CREATE TABLE sales (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    client_id INTEGER NOT NULL REFERENCES clients(id),
-    user_id INTEGER REFERENCES users(id),
-    date TEXT NOT NULL,
-    subtotal REAL NOT NULL DEFAULT 0,
-    discount REAL NOT NULL DEFAULT 0,
-    total REAL NOT NULL DEFAULT 0,
-    paid REAL NOT NULL DEFAULT 0,
-    payment_method TEXT NOT NULL DEFAULT 'cash',
-    status TEXT NOT NULL DEFAULT 'paid',
-    note TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE sale_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
-    product_id INTEGER REFERENCES products(id),
-    product_name TEXT NOT NULL,
-    qty REAL NOT NULL DEFAULT 1,
-    unit_price REAL NOT NULL DEFAULT 0,
-    total REAL NOT NULL DEFAULT 0
-);
-
-CREATE TABLE credits (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sale_id INTEGER NOT NULL REFERENCES sales(id),
-    client_id INTEGER NOT NULL REFERENCES clients(id),
-    amount REAL NOT NULL,
-    paid REAL NOT NULL DEFAULT 0,
-    remaining REAL NOT NULL,
-    due_date TEXT,
-    status TEXT NOT NULL DEFAULT 'open',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    client_id INTEGER NOT NULL REFERENCES clients(id),
-    user_id INTEGER REFERENCES users(id),
-    date TEXT NOT NULL,
-    amount REAL NOT NULL,
-    method TEXT NOT NULL DEFAULT 'cash',
-    note TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE payment_allocations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    payment_id INTEGER NOT NULL REFERENCES payments(id) ON DELETE CASCADE,
-    credit_id INTEGER NOT NULL REFERENCES credits(id),
-    amount REAL NOT NULL
-);
-
-CREATE TABLE settings (
-    key TEXT PRIMARY KEY,
-    value TEXT
-);
-
-CREATE INDEX idx_sales_date ON sales(date);
-CREATE INDEX idx_sales_client ON sales(client_id);
-CREATE INDEX idx_credits_client ON credits(client_id);
-CREATE INDEX idx_credits_status ON credits(status);
-CREATE INDEX idx_payments_date ON payments(date);
-CREATE INDEX idx_payments_client ON payments(client_id);
-SQL);
-}
-
-/**
- * Migrations légères exécutées à chaque connexion (idempotentes).
- * Permet de faire évoluer une base existante sans perdre les données.
- */
-function migrate(PDO $pdo): void
-{
-    $pdo->exec(<<<'SQL'
-CREATE TABLE IF NOT EXISTS brands (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    is_active INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_brands_unique ON brands (name COLLATE NOCASE);
-SQL);
-
-    // Reprend les marques déjà saisies sur les produits.
-    $pdo->exec("INSERT OR IGNORE INTO brands (name) SELECT DISTINCT TRIM(brand) FROM products WHERE TRIM(brand) <> ''");
-
-    // Client spécial « Passager » (vente au comptoir, sans compte client).
-    $clientColumns = array_column($pdo->query('PRAGMA table_info(clients)')->fetchAll(), 'name');
-
-    if (! in_array('is_passenger', $clientColumns, true)) {
-        $pdo->exec('ALTER TABLE clients ADD COLUMN is_passenger INTEGER NOT NULL DEFAULT 0');
-    }
-}
-
-function seed_data(PDO $pdo): void
-{
-    $stmt = $pdo->prepare(
-        'INSERT INTO users (name, username, password, role, is_active) VALUES (?, ?, ?, ?, 1)'
-    );
-    $stmt->execute(['Administrateur', 'admin', password_hash('admin123', PASSWORD_DEFAULT), 'admin']);
-
-    $settings = [
-        'shop_name' => 'Mon commerce',
-        'shop_phone' => '',
-        'shop_address' => '',
-        'shop_footer' => 'Merci de votre visite',
-        'credit_alert_days' => '30',
-    ];
-
-    $insert = $pdo->prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
-
-    foreach ($settings as $key => $value) {
-        $insert->execute([$key, $value]);
-    }
 }
 
 /* -------------------------------------------------------------------------
@@ -229,9 +64,59 @@ function setting(string $key, string $default = ''): string
     static $cache = [];
 
     if (! array_key_exists($key, $cache)) {
-        $value = scalar('SELECT value FROM settings WHERE key = ?', [$key]);
+        $value = scalar('SELECT `value` FROM `settings` WHERE `key` = ?', [$key]);
         $cache[$key] = $value === false || $value === null ? $default : (string) $value;
     }
 
     return $cache[$key];
+}
+
+/**
+ * Taille approximative de la base (octets), pour l'écran Paramètres.
+ */
+function database_size(): int
+{
+    try {
+        return (int) scalar(
+            'SELECT COALESCE(SUM(data_length + index_length), 0)
+             FROM information_schema.tables WHERE table_schema = ?',
+            [DB_NAME]
+        );
+    } catch (Throwable $exception) {
+        return 0;
+    }
+}
+
+/**
+ * Sauvegarde SQL simple (structure + données) sans dépendre de mysqldump.
+ */
+function backup_database(string $path): bool
+{
+    $pdo = db();
+    $tables = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+
+    $sql = "-- Sauvegarde " . DB_NAME . " - " . date('Y-m-d H:i:s') . "\n";
+    $sql .= "SET NAMES utf8mb4;\n";
+    $sql .= "SET FOREIGN_KEY_CHECKS=0;\n";
+
+    foreach ($tables as $table) {
+        $safe = str_replace('`', '``', (string) $table);
+        $create = $pdo->query('SHOW CREATE TABLE `' . $safe . '`')->fetch(PDO::FETCH_NUM);
+        $sql .= "\nDROP TABLE IF EXISTS `" . $safe . "`;\n" . $create[1] . ";\n";
+
+        $rows = $pdo->query('SELECT * FROM `' . $safe . '`')->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($rows as $row) {
+            $cols = array_map(fn ($c) => '`' . str_replace('`', '``', (string) $c) . '`', array_keys($row));
+            $vals = array_map(
+                fn ($v) => $v === null ? 'NULL' : $pdo->quote((string) $v),
+                array_values($row)
+            );
+            $sql .= 'INSERT INTO `' . $safe . '` (' . implode(', ', $cols) . ') VALUES (' . implode(', ', $vals) . ");\n";
+        }
+    }
+
+    $sql .= "SET FOREIGN_KEY_CHECKS=1;\n";
+
+    return file_put_contents($path, $sql) !== false;
 }

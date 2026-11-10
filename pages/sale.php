@@ -41,6 +41,7 @@ print_header(t('sale_detail') . ' #' . $id, fr_date($sale['date']));
         </form>
     <?php endif; ?>
     <?php print_button(); ?>
+    <?php pdf_button('sale', $id); ?>
     <a class="btn btn-primary" href="<?= url('ticket', ['type' => 'sale', 'id' => $id]) ?>" target="_blank"><?= e(t('print_ticket')) ?></a>
 </div>
 
@@ -91,7 +92,12 @@ print_header(t('sale_detail') . ' #' . $id, fr_date($sale['date']));
 </div>
 
 <div class="card">
-    <div class="card-head"><h2><?= e(t('items')) ?></h2></div>
+    <div class="card-head">
+        <h2><?= e(t('items')) ?></h2>
+        <?php if (is_admin()): ?>
+            <a class="btn btn-ghost btn-sm" href="<?= url('sale_items', ['sale_id' => $id]) ?>"><?= e(t('manage_items')) ?></a>
+        <?php endif; ?>
+    </div>
     <div class="table-wrap">
         <table class="table">
             <thead>
@@ -108,7 +114,7 @@ print_header(t('sale_detail') . ' #' . $id, fr_date($sale['date']));
             <?php endif; ?>
             <?php foreach ($items as $item): ?>
                 <tr>
-                    <td><?= e($item['product_name']) ?></td>
+                    <td style="font-weight:600"><?= e(item_label($item)) ?></td>
                     <td class="num"><?= rtrim(rtrim(number_format((float) $item['qty'], 2, ',', ' '), '0'), ',') ?></td>
                     <td class="num"><?= money($item['unit_price']) ?></td>
                     <td class="num" style="font-weight:700"><?= money($item['total']) ?></td>

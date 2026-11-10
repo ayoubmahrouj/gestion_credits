@@ -44,6 +44,23 @@ if ($clientId > 0) {
 $sql .= ' ORDER BY s.date DESC, s.id DESC';
 $sales = all($sql, $params);
 
+// Produits (marque + désignation) de chaque vente affichée.
+$itemsBySale = [];
+
+if ($sales) {
+    $ids = array_map(fn ($sale) => (int) $sale['id'], $sales);
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $rows = all(
+        "SELECT sale_id, brand, product_name, qty FROM sale_items
+         WHERE sale_id IN ({$placeholders}) ORDER BY id",
+        $ids
+    );
+
+    foreach ($rows as $row) {
+        $itemsBySale[(int) $row['sale_id']][] = $row;
+    }
+}
+
 $sumTotal = 0.0;
 $sumPaid = 0.0;
 foreach ($sales as $sale) {
@@ -51,7 +68,7 @@ foreach ($sales as $sale) {
     $sumPaid += (float) $sale['paid'];
 }
 
-$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name COLLATE NOCASE');
+$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name');
 
 layout_start(t('sales'), 'sales');
 print_header(t('sales'), fr_date($from) . ' → ' . fr_date($to));
@@ -105,6 +122,7 @@ print_header(t('sales'), fr_date($from) . ' → ' . fr_date($to));
     </form>
     <div class="spacer"></div>
     <a class="btn btn-ghost" href="<?= url('export', ['type' => 'sales', 'from' => $from, 'to' => $to]) ?>"><?= e(t('export_excel')) ?></a>
+    <?php pdf_button('sales', 0, ['from' => $from, 'to' => $to, 'status' => $status, 'method' => $method, 'client_id' => $clientId, 'q' => $q]); ?>
     <?php print_button(); ?>
     <a class="btn btn-primary" href="<?= url('sale_new') ?>">+ <?= e(t('sale_new')) ?></a>
 </div>
@@ -133,6 +151,7 @@ print_header(t('sales'), fr_date($from) . ' → ' . fr_date($to));
                 <th>#</th>
                 <th><?= e(t('date')) ?></th>
                 <th><?= e(t('client')) ?></th>
+                <th><?= e(t('products')) ?></th>
                 <th class="num"><?= e(t('total')) ?></th>
                 <th class="num"><?= e(t('paid')) ?></th>
                 <th class="num"><?= e(t('remaining')) ?></th>
@@ -143,7 +162,7 @@ print_header(t('sales'), fr_date($from) . ' → ' . fr_date($to));
             </thead>
             <tbody>
             <?php if (! $sales): ?>
-                <tr><td colspan="9" class="empty"><?= e(t('no_results')) ?></td></tr>
+                <tr><td colspan="10" class="empty"><?= e(t('no_results')) ?></td></tr>
             <?php endif; ?>
             <?php foreach ($sales as $sale): ?>
                 <tr>
@@ -152,6 +171,14 @@ print_header(t('sales'), fr_date($from) . ' → ' . fr_date($to));
                     <td>
                         <a href="<?= url('client', ['id' => $sale['client_id']]) ?>" style="font-weight:600"><?= e($sale['client_name']) ?></a>
                         <div class="small muted"><?= e($sale['client_phone'] ?: '') ?></div>
+                    </td>
+                    <td>
+                        <?php foreach ($itemsBySale[(int) $sale['id']] ?? [] as $item): ?>
+                            <div class="small nowrap">
+                                <strong><?= e(item_label($item)) ?></strong>
+                                <span class="muted">× <?= e(rtrim(rtrim(number_format((float) $item['qty'], 2, ',', ' '), '0'), ',')) ?></span>
+                            </div>
+                        <?php endforeach; ?>
                     </td>
                     <td class="num"><?= money($sale['total']) ?></td>
                     <td class="num"><?= money($sale['paid']) ?></td>

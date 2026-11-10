@@ -12,8 +12,8 @@ $errors = [];
 if (get('download') !== '') {
     $file = basename((string) get('download'));
 
-    if (preg_match('/^[A-Za-z0-9._-]+\.sqlite$/', $file) && is_file(BACKUP_DIR . DIRECTORY_SEPARATOR . $file)) {
-        header('Content-Type: application/x-sqlite3');
+    if (preg_match('/^[A-Za-z0-9._-]+\.sql$/', $file) && is_file(BACKUP_DIR . DIRECTORY_SEPARATOR . $file)) {
+        header('Content-Type: application/sql');
         header('Content-Disposition: attachment; filename="' . $file . '"');
         header('Content-Length: ' . filesize(BACKUP_DIR . DIRECTORY_SEPARATOR . $file));
         readfile(BACKUP_DIR . DIRECTORY_SEPARATOR . $file);
@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         foreach ($values as $key => $value) {
             q(
-                'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+                'INSERT INTO `settings` (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)',
                 [$key, $value]
             );
         }
@@ -74,28 +74,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'backup') {
-        $filename = 'gestion-' . date('Ymd-His') . '.sqlite';
+        $filename = 'gestion-' . date('Ymd-His') . '.sql';
         $path = BACKUP_DIR . DIRECTORY_SEPARATOR . $filename;
 
-        try {
-            db()->exec("VACUUM INTO '" . str_replace("'", "''", $path) . "'");
+        if (backup_database($path)) {
             flash(t('backup_done'));
-        } catch (Throwable $exception) {
-            // Repli : copie simple du fichier
-            if (@copy(DB_FILE, $path)) {
-                flash(t('backup_done'));
-            } else {
-                flash($exception->getMessage(), 'error');
-            }
+
+            // Création + téléchargement en un seul clic.
+            redirect('settings', ['download' => $filename]);
         }
 
+        flash(t('error_required'), 'error');
         redirect('settings');
     }
 
     if ($action === 'backup_delete') {
         $file = basename((string) post('file'));
 
-        if (preg_match('/^[A-Za-z0-9._-]+\.sqlite$/', $file)) {
+        if (preg_match('/^[A-Za-z0-9._-]+\.sql$/', $file)) {
             @unlink(BACKUP_DIR . DIRECTORY_SEPARATOR . $file);
             flash(t('deleted'));
         }
@@ -105,12 +101,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $backups = [];
-foreach (glob(BACKUP_DIR . DIRECTORY_SEPARATOR . '*.sqlite') ?: [] as $file) {
+foreach (glob(BACKUP_DIR . DIRECTORY_SEPARATOR . '*.sql') ?: [] as $file) {
     $backups[] = ['name' => basename($file), 'size' => filesize($file), 'time' => filemtime($file)];
 }
 usort($backups, fn ($a, $b) => $b['time'] <=> $a['time']);
 
-$dbSize = is_file(DB_FILE) ? filesize(DB_FILE) : 0;
+$dbSize = database_size();
 
 layout_start(t('settings'), 'settings');
 print_header(t('settings'));
@@ -188,15 +184,18 @@ print_header(t('settings'));
     </div>
 </div>
 
-<div class="card">
+<div class="card" id="backup">
     <div class="card-head">
         <h2><?= e(t('backup')) ?></h2>
         <span class="muted small"><?= number_format($dbSize / 1024, 1, ',', ' ') ?> Ko</span>
         <form method="post" action="<?= url('settings') ?>">
             <input type="hidden" name="_token" value="<?= csrf() ?>">
             <input type="hidden" name="action" value="backup">
-            <button class="btn btn-primary btn-sm" type="submit"><?= e(t('backup_create')) ?></button>
+            <button class="btn btn-primary btn-sm" type="submit"><?= e(t('backup_download_create')) ?></button>
         </form>
+    </div>
+    <div class="card-body" style="padding-top:0;padding-bottom:0">
+        <p class="muted small" style="margin-top:14px"><?= e(t('backup_hint')) ?></p>
     </div>
 
     <?php if (! $backups): ?>

@@ -28,6 +28,21 @@ $payments = all(
     [$id]
 );
 
+// Produits achetés (marque + désignation) avec leur vente.
+$purchased = all(
+    'SELECT si.*, s.date AS sale_date
+     FROM sale_items si JOIN sales s ON s.id = si.sale_id
+     WHERE s.client_id = ?
+     ORDER BY s.date DESC, s.id DESC, si.id',
+    [$id]
+);
+
+$itemsBySale = [];
+
+foreach ($purchased as $item) {
+    $itemsBySale[(int) $item['sale_id']][] = $item;
+}
+
 $totalSales = (float) scalar('SELECT COALESCE(SUM(total), 0) FROM sales WHERE client_id = ?', [$id]);
 $totalPaid = (float) scalar('SELECT COALESCE(SUM(amount), 0) FROM payments WHERE client_id = ?', [$id]);
 
@@ -39,6 +54,7 @@ print_header(t('client_detail'), $client['name']);
     <a class="btn btn-ghost" href="<?= url('clients') ?>"><?= render_icon('back') ?><?= e(t('back')) ?></a>
     <div class="spacer"></div>
     <?php print_button(); ?>
+    <?php pdf_button('client', (int) $client['id']); ?>
     <a class="btn btn-ghost" href="<?= url('clients', ['edit' => $client['id']]) ?>"><?= e(t('edit')) ?></a>
     <a class="btn btn-ghost" href="<?= url('sale_new', ['client_id' => $client['id']]) ?>">+ <?= e(t('sale_new')) ?></a>
     <a class="btn btn-primary" href="<?= url('payments', ['new' => 1, 'client_id' => $client['id']]) ?>">+ <?= e(t('payment_new')) ?></a>
@@ -120,6 +136,7 @@ print_header(t('client_detail'), $client['name']);
                 <thead>
                 <tr>
                     <th><?= e(t('date')) ?></th>
+                    <th><?= e(t('products')) ?></th>
                     <th class="num"><?= e(t('total')) ?></th>
                     <th class="num"><?= e(t('paid')) ?></th>
                     <th><?= e(t('payment_method')) ?></th>
@@ -131,6 +148,14 @@ print_header(t('client_detail'), $client['name']);
                 <?php foreach ($sales as $sale): ?>
                     <tr>
                         <td><?= fr_date($sale['date']) ?></td>
+                        <td>
+                            <?php foreach ($itemsBySale[(int) $sale['id']] ?? [] as $item): ?>
+                                <div class="small nowrap">
+                                    <strong><?= e(item_label($item)) ?></strong>
+                                    <span class="muted">× <?= e(rtrim(rtrim(number_format((float) $item['qty'], 2, ',', ' '), '0'), ',')) ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        </td>
                         <td class="num"><?= money($sale['total']) ?></td>
                         <td class="num"><?= money($sale['paid']) ?></td>
                         <td><?= e(t($sale['payment_method'])) ?></td>
@@ -139,6 +164,43 @@ print_header(t('client_detail'), $client['name']);
                             <a class="btn btn-ghost btn-sm" href="<?= url('sale', ['id' => $sale['id']]) ?>"><?= e(t('sale_detail')) ?></a>
                             <a class="btn btn-ghost btn-sm" href="<?= url('ticket', ['type' => 'sale', 'id' => $sale['id']]) ?>" target="_blank"><?= e(t('ticket')) ?></a>
                         </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+</div>
+
+<div class="card">
+    <div class="card-head">
+        <h2><?= e(t('client_products')) ?></h2>
+        <span class="muted small"><?= count($purchased) ?> <?= e(t('items')) ?></span>
+    </div>
+    <?php if (! $purchased): ?>
+        <div class="empty"><?= e(t('no_products')) ?></div>
+    <?php else: ?>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th><?= e(t('date')) ?></th>
+                    <th><?= e(t('product')) ?></th>
+                    <th class="num"><?= e(t('qty')) ?></th>
+                    <th class="num"><?= e(t('unit_price')) ?></th>
+                    <th class="num"><?= e(t('line_total')) ?></th>
+                    <th><?= e(t('sale')) ?></th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($purchased as $item): ?>
+                    <tr>
+                        <td><?= fr_date($item['sale_date']) ?></td>
+                        <td style="font-weight:600"><?= e(item_label($item)) ?></td>
+                        <td class="num"><?= e(rtrim(rtrim(number_format((float) $item['qty'], 2, ',', ' '), '0'), ',')) ?></td>
+                        <td class="num"><?= money($item['unit_price']) ?></td>
+                        <td class="num" style="font-weight:700"><?= money($item['total']) ?></td>
+                        <td><a class="btn btn-ghost btn-sm" href="<?= url('sale', ['id' => $item['sale_id']]) ?>">#<?= (int) $item['sale_id'] ?></a></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

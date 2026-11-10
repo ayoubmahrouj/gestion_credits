@@ -85,10 +85,10 @@ foreach ($payments as $payment) {
 |-------------------------------------------------------------------------*/
 
 $topProducts = all(
-    "SELECT si.product_name, SUM(si.qty) AS qty, SUM(si.total) AS revenue
+    "SELECT si.brand, si.product_name, SUM(si.qty) AS qty, SUM(si.total) AS revenue
      FROM sale_items si JOIN sales s ON s.id = si.sale_id
      WHERE {$where}
-     GROUP BY si.product_name ORDER BY revenue DESC LIMIT 12",
+     GROUP BY si.brand, si.product_name ORDER BY revenue DESC LIMIT 12",
     $params
 );
 
@@ -161,7 +161,7 @@ foreach ($openCredits as $credit) {
     }
 }
 
-$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name COLLATE NOCASE');
+$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name');
 $clientName = '';
 
 foreach ($clients as $client) {
@@ -275,7 +275,7 @@ print_header(t('reports'), fr_date($from) . ' → ' . fr_date($to) . ($clientNam
                 <?php endif; ?>
                 <?php foreach ($topProducts as $product): ?>
                     <tr>
-                        <td><?= e($product['product_name']) ?></td>
+                        <td style="font-weight:600"><?= e(item_label($product)) ?></td>
                         <td class="num"><?= rtrim(rtrim(number_format((float) $product['qty'], 2, ',', ' '), '0'), ',') ?></td>
                         <td class="num"><?= money($product['revenue']) ?></td>
                     </tr>

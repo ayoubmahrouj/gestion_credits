@@ -211,6 +211,98 @@ function client_total_due(int $clientId): float
 }
 
 /**
+ * Recalcule une vente après ajout / modification / suppression d'un article.
+ *
+ * Met à jour le sous-total, le total, le statut et le crédit éventuel.
+ * À appeler dans une transaction. Retourne null si tout est correct, sinon
+ * une clé de message d'erreur.
+ */
+function recalculate_sale(int $saleId): ?string
+{
+    $sale = one(
+        'SELECT s.*, c.is_passenger
+         FROM sales s JOIN clients c ON c.id = s.client_id
+         WHERE s.id = ?',
+        [$saleId]
+    );
+
+    if (! $sale) {
+        return 'no_results';
+    }
+
+    $credit = one('SELECT * FROM credits WHERE sale_id = ?', [$saleId]);
+
+    if ($credit) {
+        $allocations = (int) scalar(
+            'SELECT COUNT(*) FROM payment_allocations WHERE credit_id = ?',
+            [(int) $credit['id']]
+        );
+
+        if ($allocations > 0) {
+            return 'cannot_edit_sale';
+        }
+    }
+
+    $subtotal = round((float) scalar(
+        'SELECT COALESCE(SUM(total), 0) FROM sale_items WHERE sale_id = ?',
+        [$saleId]
+    ), 2);
+
+    $discount = max(0, (float) $sale['discount']);
+    $total = round(max(0, $subtotal - $discount), 2);
+    $isPassenger = (int) $sale['is_passenger'] === 1;
+    $paid = $isPassenger ? $total : round((float) $sale['paid'], 2);
+
+    if (! $isPassenger && $paid > $total + 0.009) {
+        return 'total_below_received';
+    }
+
+    $remaining = round($total - $paid, 2);
+
+    if ($remaining <= 0.009) {
+        $status = 'paid';
+        $method = $sale['payment_method'] === 'credit' ? 'cash' : $sale['payment_method'];
+        $remaining = 0.0;
+    } elseif ($paid > 0) {
+        $status = 'partial';
+        $method = $sale['payment_method'] === 'credit' ? 'cash' : $sale['payment_method'];
+    } else {
+        $status = 'credit';
+        $method = 'credit';
+    }
+
+    q(
+        'UPDATE sales SET subtotal = ?, total = ?, paid = ?, payment_method = ?, status = ? WHERE id = ?',
+        [$subtotal, $total, $paid, $method, $status, $saleId]
+    );
+
+    if ($remaining > 0.009) {
+        if ($credit) {
+            $creditPaid = (float) $credit['paid'];
+            $creditRemaining = round(max(0, $remaining - $creditPaid), 2);
+
+            q(
+                'UPDATE credits SET amount = ?, remaining = ?, status = ? WHERE id = ?',
+                [$remaining, $creditRemaining, $creditRemaining <= 0.009 ? 'paid' : 'open', (int) $credit['id']]
+            );
+        } else {
+            $days = max(1, (int) setting('credit_alert_days', '30'));
+            $dueDate = date('Y-m-d', strtotime($sale['date'] . ' +' . $days . ' days'));
+
+            q(
+                'INSERT INTO credits (sale_id, client_id, amount, paid, remaining, due_date, status)
+                 VALUES (?, ?, ?, 0, ?, ?, ?)',
+                [$saleId, (int) $sale['client_id'], $remaining, $remaining, $dueDate, 'open']
+            );
+        }
+    } elseif ($credit) {
+        q('DELETE FROM credits WHERE id = ?', [(int) $credit['id']]);
+    }
+
+    return null;
+}
+
+/**
  * Impute un paiement sur les crédits ouverts du client (du plus ancien au plus récent).
  */
 function allocate_payment(int $paymentId, int $clientId, float $amount): void
@@ -291,6 +383,71 @@ function reverse_payment_allocations(int $paymentId): void
     }
 
     q('DELETE FROM payment_allocations WHERE payment_id = ?', [$paymentId]);
+}
+
+/**
+ * Marque d'une ligne de vente.
+ *
+ * Les nouvelles lignes stockent la marque dans `brand`. Les anciennes
+ * lignes l'avaient fusionnée dans `product_name` sous la forme
+ * « MARQUE — PRODUIT » : on la retrouve ici pour rester compatible.
+ */
+function item_brand(array $item): string
+{
+    $brand = trim((string) ($item['brand'] ?? ''));
+
+    if ($brand !== '') {
+        return $brand;
+    }
+
+    $name = (string) ($item['product_name'] ?? '');
+
+    if (str_contains($name, ' — ')) {
+        return trim(explode(' — ', $name, 2)[0]);
+    }
+
+    return '';
+}
+
+/**
+ * Désignation seule d'une ligne de vente (sans la marque).
+ */
+function item_name(array $item): string
+{
+    $name = (string) ($item['product_name'] ?? '');
+    $brand = trim((string) ($item['brand'] ?? ''));
+
+    if ($brand !== '' && str_starts_with($name, $brand . ' — ')) {
+        return trim(substr($name, strlen($brand . ' — ')));
+    }
+
+    if ($brand === '' && str_contains($name, ' — ')) {
+        return trim(explode(' — ', $name, 2)[1]);
+    }
+
+    return $name;
+}
+
+/**
+ * Libellé complet d'une ligne de vente : « Désignation — Marque ».
+ */
+function item_label(array $item): string
+{
+    $name = item_name($item);
+    $brand = item_brand($item);
+
+    return $brand !== '' ? $name . ' — ' . $brand : $name;
+}
+
+/**
+ * Libellé complet d'un produit : « Désignation — Marque ».
+ */
+function product_label(array $product): string
+{
+    $name = trim((string) ($product['name'] ?? ''));
+    $brand = trim((string) ($product['brand'] ?? ''));
+
+    return $brand !== '' ? $name . ' — ' . $brand : $name;
 }
 
 function credit_status_label(string $status): string

@@ -98,7 +98,7 @@ if ($status === 'active') {
     $sql .= ' AND is_active = 0';
 }
 
-$sql .= ' ORDER BY name COLLATE NOCASE';
+$sql .= ' ORDER BY name';
 $users = all($sql, $params);
 
 $editing = null;

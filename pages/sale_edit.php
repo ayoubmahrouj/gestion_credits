@@ -23,7 +23,7 @@ $allocationCount = $credit
     : 0;
 $locked = $allocationCount > 0;
 
-$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name COLLATE NOCASE');
+$clients = all('SELECT id, name FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name');
 $currentClient = one('SELECT id, name, is_active FROM clients WHERE id = ?', [(int) $sale['client_id']]);
 $extraClient = null;
 
@@ -62,6 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $names = (array) post('name', []);
     $productIds = (array) post('product_id', []);
+    $brands = (array) post('brand', []);
     $qtys = (array) post('qty', []);
     $prices = (array) post('price', []);
 
@@ -69,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     foreach ($names as $index => $rawName) {
         $name = trim((string) $rawName);
+        $brand = trim((string) ($brands[$index] ?? ''));
         $qty = (float) ($qtys[$index] ?? 0);
         $price = max(0, (float) str_replace(',', '.', (string) ($prices[$index] ?? 0)));
         $productId = (int) ($productIds[$index] ?? 0);
@@ -81,14 +83,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $product = one('SELECT * FROM products WHERE id = ?', [$productId]);
 
             if ($product) {
-                $name = ($product['brand'] !== '' ? $product['brand'] . ' — ' : '') . $product['name'];
+                $brand = (string) $product['brand'];
+                $name = (string) $product['name'];
             } else {
                 $productId = 0;
             }
         }
 
+        // Ligne libre : le champ affiche « Désignation — Marque » ; on sépare
+        // la marque pour la stocker dans sa colonne.
+        if ($productId <= 0 && $brand !== '' && str_ends_with($name, ' — ' . $brand)) {
+            $name = trim(substr($name, 0, -strlen(' — ' . $brand)));
+        }
+
         $lines[] = [
             'product_id' => $productId > 0 ? $productId : null,
+            'brand' => $brand,
             'name' => $name,
             'qty' => $qty,
             'price' => $price,
@@ -138,8 +148,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             foreach ($lines as $line) {
                 q(
-                    'INSERT INTO sale_items (sale_id, product_id, product_name, qty, unit_price, total) VALUES (?, ?, ?, ?, ?, ?)',
-                    [$id, $line['product_id'], $line['name'], $line['qty'], $line['price'], $line['total']]
+                    'INSERT INTO sale_items (sale_id, product_id, brand, product_name, qty, unit_price, total) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    [$id, $line['product_id'], $line['brand'], $line['name'], $line['qty'], $line['price'], $line['total']]
                 );
             }
 
@@ -270,7 +280,7 @@ print_header(t('sale_edit') . ' #' . $id, fr_date($selectedDate));
                     <tbody>
                     <?php foreach ($items as $item): ?>
                         <tr>
-                            <td><?= e($item['product_name']) ?></td>
+                            <td style="font-weight:600"><?= e(item_label($item)) ?></td>
                             <td class="num"><?= rtrim(rtrim(number_format((float) $item['qty'], 2, ',', ' '), '0'), ',') ?></td>
                             <td class="num"><?= money($item['unit_price']) ?></td>
                             <td class="num"><?= money($item['total']) ?></td>
@@ -301,7 +311,8 @@ print_header(t('sale_edit') . ' #' . $id, fr_date($selectedDate));
                     <?php foreach ($items as $item): ?>
                         <tr class="sale-line">
                             <td>
-                                <input type="text" name="name[]" value="<?= e($item['product_name']) ?>" required>
+                                <input type="text" name="name[]" value="<?= e(item_label($item)) ?>" required>
+                                <input type="hidden" name="brand[]" value="<?= e(item_brand($item)) ?>">
                                 <input type="hidden" name="product_id[]" value="<?= (int) $item['product_id'] ?>">
                             </td>
                             <td><input type="number" step="0.01" min="0.01" name="qty[]" class="line-qty" value="<?= e((string) $item['qty']) ?>"></td>
@@ -349,6 +360,7 @@ print_header(t('sale_edit') . ' #' . $id, fr_date($selectedDate));
         <tr class="sale-line">
             <td>
                 <input type="text" name="name[]" value="" placeholder="<?= e(t('pos_product_ph')) ?>" required>
+                <input type="hidden" name="brand[]" value="">
                 <input type="hidden" name="product_id[]" value="0">
             </td>
             <td><input type="number" step="0.01" min="0.01" name="qty[]" class="line-qty" value="1"></td>

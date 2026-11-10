@@ -1,11 +1,24 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * URL d'un asset avec version (force le navigateur à charger la dernière
+ * version après une mise à jour de l'application).
+ */
+function asset_url(string $file): string
+{
+    $path = APP_ROOT . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . $file;
+    $version = is_file($path) ? (string) filemtime($path) : VERSION;
+
+    return BASE . '/assets/' . $file . '?v=' . $version;
+}
+
 function nav_items(): array
 {
     $items = [
         ['pos', t('nav_pos'), 'cart'],
         ['dashboard', t('nav_dashboard'), 'grid'],
+        ['search', t('nav_search'), 'search'],
         ['clients', t('nav_clients'), 'users'],
         ['products', t('nav_products'), 'box'],
         ['sales', t('nav_sales'), 'receipt'],
@@ -41,6 +54,7 @@ function render_icon(string $name): string
         'print' => '<path d="M6 9V2h12v7"/><rect x="4" y="9" width="16" height="9" rx="2"/><path d="M6 18h12v4H6z"/>',
         'logout' => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>',
         'search' => '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+        'file' => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/>',
         'back' => '<path d="M19 12H5M12 19l-7-7 7-7"/>',
     ];
 
@@ -66,7 +80,7 @@ function layout_start(string $title, string $page = ''): void
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= BASE ?>/assets/app.css">
+    <link rel="stylesheet" href="<?= asset_url('app.css') ?>">
 </head>
 <body data-base="<?= BASE ?>">
 <div class="app">
@@ -124,7 +138,7 @@ function layout_end(): void
         </main>
     </div>
 </div>
-<script src="<?= BASE ?>/assets/app.js"></script>
+<script src="<?= asset_url('app.js') ?>"></script>
 </body>
 </html>
     <?php
@@ -173,7 +187,7 @@ function auth_layout_start(string $title): void
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= BASE ?>/assets/app.css">
+    <link rel="stylesheet" href="<?= asset_url('app.css') ?>">
 </head>
 <body class="auth-body" data-base="<?= BASE ?>">
     <?php
@@ -182,7 +196,7 @@ function auth_layout_start(string $title): void
 function auth_layout_end(): void
 {
     ?>
-    <script src="<?= BASE ?>/assets/app.js"></script>
+    <script src="<?= asset_url('app.js') ?>"></script>
 </body>
 </html>
     <?php

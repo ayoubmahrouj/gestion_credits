@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $balance = client_balance($clientId);
 }
 
-$clients = all('SELECT id, name, phone FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name COLLATE NOCASE');
+$clients = all('SELECT id, name, phone FROM clients WHERE is_active = 1 AND is_passenger = 0 ORDER BY name');
 $previewClient = $clientId > 0 ? one('SELECT name FROM clients WHERE id = ?', [$clientId]) : null;
 
 $openCredits = $clientId > 0

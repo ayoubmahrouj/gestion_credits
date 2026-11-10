@@ -31,7 +31,7 @@ if ($name === '') {
 }
 
 if ($brand !== '') {
-    q('INSERT OR IGNORE INTO brands (name) VALUES (?)', [$brand]);
+    q('INSERT IGNORE INTO brands (name) VALUES (?)', [$brand]);
 }
 
 $existing = one(
@@ -53,7 +53,8 @@ if ($existing) {
 
     echo json_encode([
         'id' => (int) $existing['id'],
-        'name' => ($brand !== '' ? $brand . ' — ' : '') . $name,
+        'name' => $name . ($brand !== '' ? ' — ' . $brand : ''),
+        'brand' => $brand,
         'price' => $price,
     ]);
     exit;
@@ -66,6 +67,7 @@ q(
 
 echo json_encode([
     'id' => (int) db()->lastInsertId(),
-    'name' => ($brand !== '' ? $brand . ' — ' : '') . $name,
+    'name' => $name . ($brand !== '' ? ' — ' . $brand : ''),
+    'brand' => $brand,
     'price' => $price,
 ]);
